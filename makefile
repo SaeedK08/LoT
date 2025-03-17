@@ -1,0 +1,39 @@
+## Makefile for Windows
+
+## Location of where hello.c is stored in
+SRCDIR=./src
+
+## Name of the compiler, GNU GCC in this case
+CC=gcc
+
+## Any include directories
+# INCLUDE = ./lib/macos/include
+INCLUDE = C:\msys64\mingw64\include
+
+## Any flags for the compiler
+#CFLAGS = -g -I$(INCLUDE) -c
+CFLAGS = -g -c
+
+## Any libraries to link with
+#LIBS = C:\msys64\mingw64\lib
+
+## For SDL2
+## Extra flags to give to compilers when they are supposed to invoke the linker
+## NOTE ORDER OF THE FLAGS MATTERS!
+#LDFLAGS = -lmingw32 -lSDL2main -lSDL2 -mwindows
+
+## For SDL 3
+## Note: No -lSDL3main flag needed for SDL3, it is included in -lSDL3 as a header (see hello.c file).
+## NOTE ORDER OF THE FLAGS MATTERS!
+LDFLAGS = -lmingw32 -lSDL3 -lSDL3_net 
+
+## Build the correct hello source file according to your SDL version:
+hello:
+	@echo "Building Hello"
+#	$(CC) $(CFLAGS) $(SRCDIR)/hello_sdl2.c -o $@.o
+	$(CC) $(CFLAGS) $(SRCDIR)/hello_sdl3.c -o $@.o 
+	$(CC) hello.o -o hello $(LDFLAGS)
+
+clean:
+	rm hello.exe
+	rm hello.o
