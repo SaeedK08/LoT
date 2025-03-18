@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell", // Use the shell, not cppbuild
+            "label": "Build with Makefile",
+            "command": "mingw32-make", // Use mingw32-make
+            "args": [
+                "main" // Target to build (your Makefile target)
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc" // Keep the problem matcher
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}" // Crucial: Set working directory to project root
+            }
+        },
+        { //Add this code block to make the cleaning of the executable and object files easier
+            "label": "Clean",
+            "type": "shell",
+            "command": "mingw32-make",
+            "args": [
+                "clean"
+            ],
+            "group": "none",
+            "problemMatcher": []
+        }
+
+    ]
+}
