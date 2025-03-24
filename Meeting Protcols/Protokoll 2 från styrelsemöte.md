@@ -1,4 +1,4 @@
-# Protokoll 2 från styrelsemöte
+# Protokoll 2 från gruppmöte
 
 Flying Tigers - Grupp 10
 Kurs: CM1008
@@ -26,7 +26,7 @@ Mötet öppnas och inleds av Kasiem Al-Mshabbak kl 10:11.
 
 ## 2 Beslutsförhet
 
-Styrelsen finner att det vid förevarande sammanträde är beslutsför.
+Gruppen finner att det vid förevarande sammanträde är beslutsför.
 
 ## 3 Val av presidium
 
@@ -38,7 +38,7 @@ Till justeringsmän väljs Saeed Kassab och Bader Al-Naasan.
 
 ## 4 Fastställande av dagordning
 
-Dagordningen fastställs i dess utfärdade utformning
+Dagordningen fastställs i dess utfärdade utformning.
 
 ## 5 Produktlogg
 
@@ -83,7 +83,7 @@ Inga övriga frågor.
 
 ## 9 Beslut som fattats
 
-Styrelsen har fattat följande beslut:
+Gruppen har fattat följande beslut:
 
 - Ett antal user stories
 - Påbörjat business case
@@ -96,8 +96,8 @@ Följande ska göras inom närmaste tiden:
 
 ## 11 Nästa möte
 
-Styrelsen har inte beslutat när nästa möte hålls.
+Gruppen meddelar i gemensama chatt grupp när nästa möte kommer att hållas.
 
 ## 12 Mötets avslut
 
-Mötet avslutas kl. 11:07
+Mötet avslutas kl. 11:07.
