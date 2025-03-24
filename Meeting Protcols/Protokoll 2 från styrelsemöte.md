@@ -67,7 +67,7 @@ Dagordningen fastställs i dess utfärdade utformning
 - Ha en bra tutorial och ett spel med simpel spellogik
 - Enklet pixlerat gränssnitt
 
-## 5 Sedan sist
+## 7 Sedan sist
 
 - Alla gruppmedlemmar ska ladda ner utvecklingsmiljön och SDL_net
 - Alla gruppmedlemmar ska delta i handledarmötet på fredagen 2025-03-21
@@ -77,27 +77,27 @@ Av ovanstående har följande utförts:
 - Alla gruppmedlemmar har laddat ner utvecklingsmiljön och SDL_net
 - Alla gruppmedlemmar kunde inte delta i handledarmötet fredagen 2025-03-21
 
-## 6 Övriga frågor
+## 8 Övriga frågor
 
 Inga övriga frågor.
 
-## 7 Beslut som fattats
+## 9 Beslut som fattats
 
 Styrelsen har fattat följande beslut:
 
 - Ett antal user stories
 - Påbörjat business case
 
-## 8 Action-points
+## 10 Action-points
 
 Följande ska göras inom närmaste tiden:
 
 - Alla gruppmedlemmar ska ha tillgång till Taiga
 
-## 9 Nästa möte
+## 11 Nästa möte
 
 Styrelsen har inte beslutat när nästa möte hålls.
 
-## 10 Mötets avslut
+## 12 Mötets avslut
 
 Mötet avslutas kl. 11:07
