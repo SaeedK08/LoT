@@ -44,15 +44,15 @@ Dagordningen fastställs i dess utfärdade utformning.
 
 ### 5.1 User stories
 
-- Som spelare vill jag kunna röra min karaktär fritt på en karta med en bana för att jag ska kunna positionera mig strategiskt.
+- Som spelare vill jag kunna röra min karaktär fritt på en karta för att jag ska kunna positionera mig strategiskt.
 - Som spelare vill jag kunna attackera fiendens karaktärer och minions med grundläggande attacker, så att jag kan skada och eliminera motståndare.
-- Som spelare vill jag kunna se en minikarta som visar min position och mina allierades positioner, så att jag kan ha en överblick över slagfältet.
-- Som spelare vill jag kunna förstöra fiendens bas för att vinna matchen, så att jag har ett tydligt mål att sträva efter.
-- Som en ny spelare vill jag ha tillgång till en tutorial som lär mig grunderna i spelet, så att jag snabbt kan komma igång och spela.
-- Som spelare vill jag kunna se en tydlig indikator på hur mycket liv och mana min champion har, så jag vet när jag behöver dra mig tillbaka eller använda potions.
-- Som spelare vill jag kunna kontrollera hur mitt lags minion wave ser ut.
+- Som spelare vill jag kunna se en minikarta som visar min position och mina lagmedlemmars position, så att jag kan ha en överblick över slagfältet.
+- Som spelare vill jag kunna förstöra fiendens bas för att vinna matchen.
+- Som en ny spelare vill jag ha tillgång till en tutorial vilket lär mig grunderna i spelet.
+- Som spelare vill jag kunna se en tydlig indikator på hur mycket liv och mana min karaktär har, så att jag vet när jag håller på att dö.
+- Som spelare vill jag kunna kontrollera vad mitt lags minions wave är uppbyggt av, för att få en strategisk fördel.
 - Som spelare vill jag ha ett tydligt och intuitivt användargränssnitt, så att jag enkelt kan navigera i menyer och hitta den information jag behöver.
-- Som spelare vill jag ha en lättläst spelklocka som visar hur länge matchen har pågått, så att jag har en uppfattning om tidsperspektivet.
+- Som spelare vill jag ha en spelklocka som visar hur länge matchen har pågått, så att jag har en uppfattning om tidsperspektivet.
 
 ## 6 Business case
 
@@ -65,7 +65,7 @@ Dagordningen fastställs i dess utfärdade utformning.
 ### 6.2 Lösningar
 
 - Ha en bra tutorial och ett spel med simpel spellogik
-- Enklet pixlerat gränssnitt
+- Enkelt pixlat gränssnitt
 
 ## 7 Sedan sist
 
@@ -96,7 +96,7 @@ Följande ska göras inom närmaste tiden:
 
 ## 11 Nästa möte
 
-Gruppen meddelar i gemensama chatt grupp när nästa möte kommer att hållas.
+Gruppen meddelar i gemensamma chatt grupp när nästa möte kommer att hållas.
 
 ## 12 Mötets avslut
 

@@ -52,7 +52,7 @@ Gruppen bestämde att spelet som ska utvecklas ska vara en LoL-like. Alltså en 
 
 - Minst 2 spelare, måste vara ett jämnt antal
 - Top-down perspektiv
-- Non Playable Charachters (NPC:s) och kanontorn
+- Non Playable Characters (NPC:s) och kanontorn
 
 ## 7 Namnet på spelet
 
