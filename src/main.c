@@ -5,10 +5,16 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
-// #include <SDL3_image/SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 
 SDL_Window *window;     // SDL window structure
 SDL_Renderer *renderer; // SDL renderer structure
+SDL_Texture *mapTexture;
+SDL_Texture **animTextures;
+SDL_Texture *animTexture;
+IMG_Animation *anim;
+
+int current_frame = 0;
 
 // Callback for application shutdown
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
@@ -32,12 +38,99 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     return SDL_APP_CONTINUE; // Continue processing events
 }
 
+SDL_AppResult SDL_imgDemo()
+{
+
+    char mapLoc[] = "./resources/Sprites/map.png";
+
+    mapTexture = IMG_LoadTexture(renderer, mapLoc);
+
+    if (!mapTexture)
+    {
+        SDL_Log("Couldn't load %s: %s\n", mapLoc, SDL_GetError());
+        return SDL_APP_FAILURE; // Signal initialization failure
+    }
+
+    char animLoc[] = "./resources/Sprites/Red_Team/Fire_Wizard/Idle_Animation.gif";
+
+    animTexture = IMG_LoadTexture(renderer, animLoc);
+
+    if (!mapTexture)
+    {
+        SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
+        return SDL_APP_FAILURE; // Signal initialization failure
+    }
+
+    anim = IMG_LoadAnimation(animLoc);
+
+    if (!anim)
+    {
+        SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
+        return SDL_APP_FAILURE; // Signal initialization failure
+    }
+
+    int w = anim->w;
+    int h = anim->h;
+
+    animTextures = (SDL_Texture **)SDL_calloc(anim->count, sizeof(*animTextures));
+    if (!animTextures)
+    {
+        SDL_Log("Couldn't allocate animTextures\n");
+        IMG_FreeAnimation(anim);
+        return SDL_APP_FAILURE; // Signal initialization failure
+    }
+
+    for (int j = 0; j < anim->count; ++j)
+    {
+        animTextures[j] = SDL_CreateTextureFromSurface(renderer, anim->frames[j]);
+    }
+}
+
+void renderIMGDemo()
+{
+    float textureWidth, textureHeight;
+
+    SDL_GetTextureSize(animTexture, &textureWidth, &textureHeight);
+
+    // 2. Define the destination rectangle (SDL_FRect) on the screen
+    SDL_FRect destinationRect;
+
+    // Set the top-left corner position where the mapTexture will be drawn
+    destinationRect.x = 50.0f;  // Draw starting 50 pixels from the left edge
+    destinationRect.y = 500.0f; // Draw starting 100 pixels from the top edge
+
+    // Set the width and height for the mapTexture on the screen
+    // Example 1: Draw the mapTexture at its original size
+    destinationRect.h = textureHeight;
+    destinationRect.w = textureWidth;
+
+    SDL_RenderTexture(renderer, mapTexture, NULL, NULL);
+    SDL_RenderTexture(renderer, animTextures[current_frame], NULL, &destinationRect);
+}
+
+void delayrenderIMGDemo()
+{
+    int delay;
+    if (anim->delays[current_frame])
+    {
+        delay = anim->delays[current_frame];
+    }
+    else
+    {
+        delay = 100;
+    }
+    SDL_Delay(delay);
+
+    current_frame = (current_frame + 1) % anim->count;
+}
+
 // Function to render the scene
 void render()
 {
-    SDL_RenderClear(renderer);                      // Clear the rendering target
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set draw color to black
-    SDL_RenderPresent(renderer);                    // Update the screen
+    SDL_RenderClear(renderer); // Clear the rendering target
+    renderIMGDemo();
+    SDL_RenderPresent(renderer); // Update the screen
+    delayrenderIMGDemo();
 }
 
 // Callback for each iteration of the main loop
@@ -88,8 +181,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     // Create the main window
     window = SDL_CreateWindow(
         "SDL3 Game",         // Window title
-        800,                 // Window width
-        600,                 // Window height
+        2520,                // Window width
+        1080,                // Window height
         SDL_WINDOW_RESIZABLE // Window flags
     );
 
@@ -112,11 +205,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (!SDLNet_Init())
     {
         SDL_Log("SDLNet_Init() failed: %s", SDL_GetError()); // Log SDL error
-        // Note: Should probably return SDL_APP_FAILURE here too for consistency
-        return 1; // Indicate failure (non-zero usually means error)
+        return SDL_APP_FAILURE;                              // Signal initialization failure
     }
 
     getLocalAddrs(); // Get and log local addresses
+
+    if (!SDL_imgDemo())
+    {
+        SDL_Log("SDL_imgDemo() failed: %s", SDL_GetError()); // Log SDL error
+        return SDL_APP_FAILURE;                              // Signal initialization failure
+    }
 
     return SDL_APP_CONTINUE; // Signal successful initialization
 }

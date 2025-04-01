@@ -15,7 +15,7 @@ CFLAGS = -g -c
 ## For SDL 3
 ## Note: No -lSDL3main flag needed for SDL3, it is included in -lSDL3 as a header (see main.c file).
 ## NOTE ORDER OF THE FLAGS MATTERS!
-LDFLAGS = -lmingw32 -lSDL3 -lSDL3_net 
+LDFLAGS = -lmingw32 -lSDL3 -lSDL3_net -lSDL3_image
 
 ## Build the correct main source file according to your SDL version:
 main:
