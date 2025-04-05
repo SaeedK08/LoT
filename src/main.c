@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
 #include <SDL3_image/SDL_image.h>
+#include "player.h"
 
 SDL_Window *window;     // SDL window structure
 SDL_Renderer *renderer; // SDL renderer structure
@@ -14,7 +15,7 @@ SDL_Texture **animTextures;
 SDL_Texture *animTexture;
 IMG_Animation *anim;
 
-int current_frame = 0;
+//int current_frame = 0;
 
 // Callback for application shutdown
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
@@ -51,39 +52,39 @@ SDL_AppResult SDL_imgDemo()
         return SDL_APP_FAILURE; // Signal initialization failure
     }
 
-    char animLoc[] = "./resources/Sprites/Red_Team/Fire_Wizard/Idle_Animation.gif";
+    // char animLoc[] = "./resources/Sprites/Red_Team/Fire_Wizard/Idle_Animation.gif";
 
-    animTexture = IMG_LoadTexture(renderer, animLoc);
+    // animTexture = IMG_LoadTexture(renderer, animLoc);
 
-    if (!mapTexture)
-    {
-        SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
-        return SDL_APP_FAILURE; // Signal initialization failure
-    }
+    // if (!mapTexture)
+    // {
+    //     SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
+    //     return SDL_APP_FAILURE; // Signal initialization failure
+    // }
 
-    anim = IMG_LoadAnimation(animLoc);
+    // anim = IMG_LoadAnimation(animLoc);
 
-    if (!anim)
-    {
-        SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
-        return SDL_APP_FAILURE; // Signal initialization failure
-    }
+    // if (!anim)
+    // {
+    //     SDL_Log("Couldn't load %s: %s\n", animLoc, SDL_GetError());
+    //     return SDL_APP_FAILURE; // Signal initialization failure
+    // }
 
-    int w = anim->w;
-    int h = anim->h;
+    // int w = anim->w;
+    // int h = anim->h;
 
-    animTextures = (SDL_Texture **)SDL_calloc(anim->count, sizeof(*animTextures));
-    if (!animTextures)
-    {
-        SDL_Log("Couldn't allocate animTextures\n");
-        IMG_FreeAnimation(anim);
-        return SDL_APP_FAILURE; // Signal initialization failure
-    }
+    // animTextures = (SDL_Texture **)SDL_calloc(anim->count, sizeof(*animTextures));
+    // if (!animTextures)
+    // {
+    //     SDL_Log("Couldn't allocate animTextures\n");
+    //     IMG_FreeAnimation(anim);
+    //     return SDL_APP_FAILURE; // Signal initialization failure
+    // }
 
-    for (int j = 0; j < anim->count; ++j)
-    {
-        animTextures[j] = SDL_CreateTextureFromSurface(renderer, anim->frames[j]);
-    }
+    // for (int j = 0; j < anim->count; ++j)
+    // {
+    //     animTextures[j] = SDL_CreateTextureFromSurface(renderer, anim->frames[j]);
+    // }
 }
 
 void renderIMGDemo()
@@ -105,23 +106,27 @@ void renderIMGDemo()
     destinationRect.w = textureWidth;
 
     SDL_RenderTexture(renderer, mapTexture, NULL, NULL);
-    SDL_RenderTexture(renderer, animTextures[current_frame], NULL, &destinationRect);
+    //SDL_RenderTexture(renderer, animTextures[current_frame], NULL, &destinationRect);
 }
 
-void delayrenderIMGDemo()
-{
-    int delay;
-    if (anim->delays[current_frame])
-    {
-        delay = anim->delays[current_frame];
-    }
-    else
-    {
-        delay = 100;
-    }
-    SDL_Delay(delay);
+// void delayrenderIMGDemo()
+// {
+//     int delay;
+//     if (anim->delays[current_frame])
+//     {
+//         delay = anim->delays[current_frame];
+//     }
+//     else
+//     {
+//         delay = 100;
+//     }
+//     SDL_Delay(delay);
 
-    current_frame = (current_frame + 1) % anim->count;
+//     current_frame = (current_frame + 1) % anim->count;
+// }
+
+void update() {
+    update_player;
 }
 
 // Function to render the scene
@@ -129,13 +134,15 @@ void render()
 {
     SDL_RenderClear(renderer); // Clear the rendering target
     renderIMGDemo();
+    render_player(renderer);
     SDL_RenderPresent(renderer); // Update the screen
-    delayrenderIMGDemo();
+    //delayrenderIMGDemo();
 }
 
 // Callback for each iteration of the main loop
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+    update();
     render();                // Call the render function
     return SDL_APP_CONTINUE; // Continue the main loop
 }
@@ -181,8 +188,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     // Create the main window
     window = SDL_CreateWindow(
         "SDL3 Game",         // Window title
-        2520,                // Window width
-        1080,                // Window height
+        WINDOW_W,                // Window width
+        WINDOW_H,                // Window height
         SDL_WINDOW_RESIZABLE // Window flags
     );
 
@@ -214,6 +221,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     {
         SDL_Log("SDL_imgDemo() failed: %s", SDL_GetError()); // Log SDL error
         return SDL_APP_FAILURE;                              // Signal initialization failure
+    }
+    if (!init_player(renderer)) {
+        SDL_Log("Erorr initializing a player: %s \n" ,SDL_GetError());
+        return SDL_APP_FAILURE;
     }
 
     return SDL_APP_CONTINUE; // Signal successful initialization
