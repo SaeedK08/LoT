@@ -17,12 +17,24 @@ CFLAGS = -g -c
 ## NOTE ORDER OF THE FLAGS MATTERS!
 LDFLAGS = -lmingw32 -lSDL3 -lSDL3_net -lSDL3_image
 
-## Build the correct main source file according to your SDL version:
-main:
-	@echo "Building main"
-	$(CC) $(CFLAGS) $(SRCDIR)/main.c -o $@.o 
-	$(CC) main.o -o main $(LDFLAGS)
+## List all source files
+SOURCES = $(SRCDIR)/main.c $(SRCDIR)/player.c
+
+## Create object file names from source file names
+OBJECTS = $(SOURCES:.c=.o)
+
+## Name of the final executable
+EXECUTABLE = main
+
+## Build the executable (main target)
+$(EXECUTABLE): $(OBJECTS)
+	@echo "Linking..."
+	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(LDFLAGS)
+
+## Rule to compile .c files into .o files
+%.o: %.c
+	@echo "Compiling $<"
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm main.exe
-	rm main.o
+	rm $(EXECUTABLE).exe $(OBJECTS)
