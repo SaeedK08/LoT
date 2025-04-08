@@ -7,10 +7,16 @@
 #define PLAYER_WIDTH 35
 #define PLAYER_HEIGHT 67
 
+typedef struct position
+{
+    float x, y;
+} Position;
+
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <stdbool.h>
 
-bool init_player(SDL_Renderer* renderer);
-void render_player(SDL_Renderer* renderer);
+bool init_player(SDL_Renderer *renderer);
+void render_player(SDL_Renderer *renderer);
 void update_player(void);
+Position funcGetPlayerPosition(void);

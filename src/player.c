@@ -4,10 +4,6 @@ SDL_Texture *player_texture, *player_walkTexture;
 SDL_Texture **player_animTextures, **player_walkAnimTextures;
 IMG_Animation *anim, *walk_anim;
 int current_frame = 0, current_frame_walk = 0;
-typedef struct position
-{
-    float x, y;
-} Position;
 Position dest_position = {800.0f, 400.0f};
 Position src_position = {59.0f, 56.0f};
 Uint64 current_tick, last_tick;
@@ -109,7 +105,13 @@ bool init_player(SDL_Renderer *renderer)
     return true;
 }
 
-// walkTesture 1 : {47,62,23,66}
+// Function to get the player's current position
+Position funcGetPlayerPosition(void)
+{
+    return dest_position; // Return the global position struct
+}
+
+// walkTexture 1 : {47,62,23,66}
 // walkTexture 2: {179,62,19,66}
 // walkTexture 3: {308,61,26,67}
 // walkTexture 4: {434,61,21,66}
