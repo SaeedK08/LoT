@@ -1,24 +1,24 @@
 #include "../include/damage.h"
 #include "../include/player.h"
 
-SDL_AppResult funcCheckHit(SDL_MouseButtonEvent mouse_event)
+SDL_AppResult funcCheckHit(SDL_FPoint mousePos)
 {
-    // printf("\nfuncCheckHit received mouse event:\n");
-    // printf(" - Button index: %u\n", mouse_event.button);
-    // printf(" - State: %s\n", mouse_event.down ? "Pressed" : "Released");
-    // printf(" - Clicks: %u\n", mouse_event.clicks);
-    printf(" - Coordinates: (%.2f, %.2f)\n", mouse_event.x, mouse_event.y);
-    // printf(" - Timestamp: %llu ns\n", (unsigned long long)mouse_event.timestamp); // Use %llu for Uint64
+    SDL_FPoint player1Pos = funcGetPlayer1Position();
+    SDL_FPoint player2Pos = funcGetPlayer2Position();
+    SDL_FRect player2Rect = {player2Pos.x, player2Pos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
 
-    float playerPosx = funcGetPlayerPosition().x;
-    float playerPosy = funcGetPlayerPosition().y;
-
-    printf("%f,", playerPosx);
-    printf("%f\n", playerPosy);
-
-    if ((mouse_event.x >= playerPosx && mouse_event.x <= playerPosx + PLAYER_WIDTH) && (mouse_event.y >= playerPosy && mouse_event.y <= playerPosy + PLAYER_HEIGHT))
+    if (SDL_PointInRectFloat(&mousePos, &player2Rect))
     {
-        printf("HIT\n");
+        printf("fake hit\n");
+
+        float deltaX = player1Pos.x - player2Pos.x;
+        float deltaY = player1Pos.y - player2Pos.y;
+        const float attackRange = 100.0f;
+
+        if (fabsf(deltaX) < attackRange && fabsf(deltaY) < attackRange)
+        {
+            printf("REAL HIT\n");
+        }
     }
 
     return SDL_APP_SUCCESS;

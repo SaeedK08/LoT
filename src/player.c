@@ -4,8 +4,9 @@ SDL_Texture *player_texture, *player_walkTexture;
 SDL_Texture **player_animTextures, **player_walkAnimTextures;
 IMG_Animation *anim, *walk_anim;
 int current_frame = 0, current_frame_walk = 0;
-Position dest_position = {800.0f, 400.0f};
-Position src_position = {59.0f, 56.0f};
+SDL_FPoint player1Pos = {800.0f, 400.0f};
+SDL_FPoint player2Pos = {600.0f, 200.0f};
+SDL_FPoint fireWizardSpritePos = {59.0f, 56.0f};
 Uint64 current_tick, last_tick;
 float delta_time;
 
@@ -20,52 +21,88 @@ void update_player()
     current_tick = SDL_GetPerformanceCounter();
     delta_time = (current_tick - last_tick) / (float)(SDL_GetPerformanceFrequency());
     last_tick = current_tick;
-    if (keyboard_state[SDL_SCANCODE_W] && dest_position.y > 0)
+    if (keyboard_state[SDL_SCANCODE_W] && player1Pos.y > 0)
     {
-        dest_position.y -= player_speed * delta_time;
+        player1Pos.y -= player_speed * delta_time;
         // SDL_Delay(1000/60);
         // position.y --;
     }
-    if (keyboard_state[SDL_SCANCODE_S] && dest_position.y <= WINDOW_H - PLAYER_HEIGHT)
+    if (keyboard_state[SDL_SCANCODE_S] && player1Pos.y <= WINDOW_H - PLAYER_HEIGHT)
     {
-        dest_position.y += player_speed * delta_time;
+        player1Pos.y += player_speed * delta_time;
         // SDL_Delay(1000/60);
         // position.y ++;
     }
-    if (keyboard_state[SDL_SCANCODE_A] && dest_position.x > 0)
+    if (keyboard_state[SDL_SCANCODE_A] && player1Pos.x > 0)
     {
-        dest_position.x -= player_speed * delta_time;
-        src_position.y = 178.0f;
-        src_position.x += 128;
-        if (src_position.x > 700)
-            src_position.x = 56.0f;
+        player1Pos.x -= player_speed * delta_time;
+        fireWizardSpritePos.y = 178.0f;
+        fireWizardSpritePos.x += 128;
+        if (fireWizardSpritePos.x > 700)
+            fireWizardSpritePos.x = 56.0f;
         // SDL_Delay(1000/60);
         //  position.x --;
     }
-    if (keyboard_state[SDL_SCANCODE_D] && dest_position.x < WINDOW_W - PLAYER_WIDTH)
+    if (keyboard_state[SDL_SCANCODE_D] && player1Pos.x < WINDOW_W - PLAYER_WIDTH)
     {
-        dest_position.x += player_speed * delta_time;
-        src_position.y = 56.0f;
-        src_position.x += 128;
-        if (src_position.x > 700)
-            src_position.x = 56.0f;
+        player1Pos.x += player_speed * delta_time;
+        fireWizardSpritePos.y = 56.0f;
+        fireWizardSpritePos.x += 128;
+        if (fireWizardSpritePos.x > 700)
+            fireWizardSpritePos.x = 56.0f;
         // SDL_Delay(1000/60);
-        // dest_position.x ++;
+        // player1Pos.x ++;
+    }
+    if (keyboard_state[SDL_SCANCODE_UP] && player2Pos.y > 0)
+    {
+        player2Pos.y -= player_speed * delta_time;
+        // SDL_Delay(1000/60);
+        // position.y --;
+    }
+    if (keyboard_state[SDL_SCANCODE_DOWN] && player2Pos.y <= WINDOW_H - PLAYER_HEIGHT)
+    {
+        player2Pos.y += player_speed * delta_time;
+        // SDL_Delay(1000/60);
+        // position.y ++;
+    }
+    if (keyboard_state[SDL_SCANCODE_LEFT] && player2Pos.x > 0)
+    {
+        player2Pos.x -= player_speed * delta_time;
+        fireWizardSpritePos.y = 178.0f;
+        fireWizardSpritePos.x += 128;
+        if (fireWizardSpritePos.x > 700)
+            fireWizardSpritePos.x = 56.0f;
+        // SDL_Delay(1000/60);
+        //  position.x --;
+    }
+    if (keyboard_state[SDL_SCANCODE_RIGHT] && player2Pos.x < WINDOW_W - PLAYER_WIDTH)
+    {
+        player2Pos.x += player_speed * delta_time;
+        fireWizardSpritePos.y = 56.0f;
+        fireWizardSpritePos.x += 128;
+        if (fireWizardSpritePos.x > 700)
+            fireWizardSpritePos.x = 56.0f;
+        // SDL_Delay(1000/60);
+        // player1Pos.x ++;
     }
 }
 
 void render_player(SDL_Renderer *renderer)
 {
-    SDL_FRect destrect = {dest_position.x, dest_position.y, PLAYER_WIDTH, PLAYER_HEIGHT};
-    SDL_FRect srcrect = {src_position.x, src_position.y, PLAYER_WIDTH, PLAYER_HEIGHT};
-    SDL_RenderTexture(renderer, player_walkTexture, &srcrect, &destrect);
+    SDL_FRect srcrect = {fireWizardSpritePos.x, fireWizardSpritePos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
+    SDL_FRect player1PosDest = {player1Pos.x, player1Pos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
+    SDL_RenderTexture(renderer, player_walkTexture, &srcrect, &player1PosDest);
+
+    SDL_FRect player2PosDest = {player2Pos.x, player2Pos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
+    SDL_RenderTexture(renderer, player_walkTexture, &srcrect, &player2PosDest);
+
     SDL_Delay(150);
     // static SDL_FRect srcrect = {0};
     // SDL_GetWindowSize(); // Try this one out!!
     // float player_width, player_height;
     // SDL_GetTextureSize(player_animTextures[0],&player_width,&player_height);
-    // SDL_RenderTexture(renderer, player_animTextures[current_frame++ % anim->count], &srcrect,&destrect);
-    // SDL_RenderTexture(renderer, player_walkAnimTextures[current_frame_walk++ % walk_anim->count], NULL, &destrect);
+    // SDL_RenderTexture(renderer, player_animTextures[current_frame++ % anim->count], &srcrect,&player1PosDest);
+    // SDL_RenderTexture(renderer, player_walkAnimTextures[current_frame_walk++ % walk_anim->count], NULL, &player1PosDest);
     // SDL_Delay(*(walk_anim->delays));
 }
 
@@ -106,9 +143,14 @@ bool init_player(SDL_Renderer *renderer)
 }
 
 // Function to get the player's current position
-Position funcGetPlayerPosition(void)
+SDL_FPoint funcGetPlayer1Position(void)
 {
-    return dest_position; // Return the global position struct
+    return player1Pos; // Return the global position struct
+}
+// Function to get the player's current position
+SDL_FPoint funcGetPlayer2Position(void)
+{
+    return player2Pos; // Return the global position struct
 }
 
 // walkTexture 1 : {47,62,23,66}

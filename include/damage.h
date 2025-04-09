@@ -5,5 +5,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <stdio.h>
+#include <math.h>
 
-SDL_AppResult funcCheckHit(SDL_MouseButtonEvent mouse_event);
+SDL_AppResult funcCheckHit(SDL_FPoint mousePos);

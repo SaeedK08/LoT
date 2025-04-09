@@ -38,7 +38,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     // Check for left click
     if (event->button.button == 1)
     {
-        funcCheckHit(event->button);
+        funcCheckHit((SDL_FPoint){event->button.x, event->button.y});
     }
 
     return SDL_APP_CONTINUE; // Continue processing events
@@ -71,8 +71,10 @@ void update()
 void render()
 {
     SDL_RenderClear(renderer); // Clear the rendering target
+
     renderMap();
     render_player(renderer);
+
     SDL_RenderPresent(renderer); // Update the screen
 }
 
