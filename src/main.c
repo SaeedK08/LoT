@@ -11,6 +11,7 @@
 #include <SDL3_image/SDL_image.h>
 #include "../include/player.h"
 #include "../include/damage.h"
+#include "../include/net.h"
 
 SDL_Window *window;     // SDL window structure
 SDL_Renderer *renderer; // SDL renderer structure
@@ -128,6 +129,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (!init_player(renderer))
     {
         SDL_Log("Erorr initializing a player: %s \n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    if (!funcNetInit())
+    {
+        SDL_Log("funcNetInit failed: %s", SDL_GetError()); // Log SDL error
         return SDL_APP_FAILURE;
     }
 
