@@ -615,16 +615,43 @@
  "tileheight":16,
  "tilesets":[
         {
+         "columns":25,
          "firstgid":1,
-         "source":"Wall_Tiles.tsx"
+         "image":".\/resources\/Map\/Wall_Tiles.png",
+         "imageheight":400,
+         "imagewidth":400,
+         "margin":0,
+         "name":"Wall_Tiles",
+         "spacing":0,
+         "tilecount":625,
+         "tileheight":16,
+         "tilewidth":16
         }, 
         {
+         "columns":25,
          "firstgid":626,
-         "source":"Floors_Tiles.tsx"
+         "image":".\/resources\/Map\/Floors_Tiles.png",
+         "imageheight":416,
+         "imagewidth":400,
+         "margin":0,
+         "name":"Floors_Tiles",
+         "spacing":0,
+         "tilecount":650,
+         "tileheight":16,
+         "tilewidth":16
         }, 
         {
+         "columns":25,
          "firstgid":1276,
-         "source":"Water_tiles.tsx"
+         "image":".\/resources\/Map\/Water_tiles.png",
+         "imageheight":400,
+         "imagewidth":400,
+         "margin":0,
+         "name":"Water_tiles",
+         "spacing":0,
+         "tilecount":625,
+         "tileheight":16,
+         "tilewidth":16
         }],
  "tilewidth":16,
  "type":"map",

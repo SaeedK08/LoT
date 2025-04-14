@@ -3,9 +3,15 @@
  <editorsettings>
   <export target="tiledMap.json" format="json"/>
  </editorsettings>
- <tileset firstgid="1" source="Wall_Tiles.tsx"/>
- <tileset firstgid="626" source="Floors_Tiles.tsx"/>
- <tileset firstgid="1276" source="Water_tiles.tsx"/>
+ <tileset firstgid="1" name="Wall_Tiles" tilewidth="16" tileheight="16" tilecount="625" columns="25">
+  <image source="./resources/Map/Wall_Tiles.png" width="400" height="400"/>
+ </tileset>
+ <tileset firstgid="626" name="Floors_Tiles" tilewidth="16" tileheight="16" tilecount="650" columns="25">
+  <image source="./resources/Map/Floors_Tiles.png" width="400" height="416"/>
+ </tileset>
+ <tileset firstgid="1276" name="Water_tiles" tilewidth="16" tileheight="16" tilecount="625" columns="25">
+  <image source="./resources/Map/Water_tiles.png" width="400" height="400"/>
+ </tileset>
  <layer id="2" name="Water" width="200" height="110">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

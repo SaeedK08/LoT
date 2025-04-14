@@ -18,7 +18,7 @@ CFLAGS = -g -c
 LDFLAGS = -lmingw32 -lSDL3 -lSDL3_net -lSDL3_image
 
 ## List all source files
-SOURCES = $(SRCDIR)/main.c $(SRCDIR)/player.c $(SRCDIR)/damage.c $(SRCDIR)/net.c
+SOURCES = $(SRCDIR)/main.c $(SRCDIR)/player.c $(SRCDIR)/damage.c $(SRCDIR)/net.c $(SRCDIR)/map.c
 
 ## Create object file names from source file names
 OBJECTS = $(SOURCES:.c=.o)

@@ -6,11 +6,12 @@
 
 #include "../include/player.h"
 #include "../include/damage.h"
+#include "../include/map.h"
 
 #include <stdlib.h>
 
-#define WINDOW_W 1600
-#define WINDOW_H 900
+#define WINDOW_W 3200
+#define WINDOW_H 1760
 
 struct AppState
 {
@@ -60,10 +61,12 @@ void update(AppState *pState)
 // // Function to render the scene
 void render(AppState *pState)
 {
-    SDL_RenderClear(pState->pRenderer);                    // Clear the rendering target
-    SDL_SetRenderDrawColor(pState->pRenderer, 0, 0, 0, 0); // Set the draw color
-    render_player(pState->player, pState->pRenderer);      // Call the render function for the player
-    SDL_RenderPresent(pState->pRenderer);                  // Update the screen
+    SDL_RenderClear(pState->pRenderer); // Clear the rendering target
+
+    funcRenderMap(pState->pRenderer);
+    render_player(pState->player, pState->pRenderer); // Call the render function for the player
+
+    SDL_RenderPresent(pState->pRenderer); // Update the screen
 }
 
 // Callback for each iteration of the main loop
@@ -115,6 +118,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("SDL_CreateRenderer() failed: %s", SDL_GetError()); // Log SDL error
         return SDL_APP_FAILURE;                                     // Signal initialization failure
     }
+
+    funcInitMap(pState->pRenderer);
 
     pState->player = createPlayer(pState->pRenderer, WINDOW_W, WINDOW_H); // Create the player
 
