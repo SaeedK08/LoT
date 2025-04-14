@@ -13,7 +13,7 @@ struct Player{
     char anim_path[256]; 
     char walk_anim_path[256];
     char sprite_sheet_path[256];
-
+    SDL_FlipMode flipMode;
     int windowWidth, windowHeight;
 
 };
@@ -27,13 +27,16 @@ Player *createPlayer(SDL_Renderer *pRenderer, int windowWidth, int windowHeight)
     player1->player_srcrect.y = 0;
     player1->current_frame = 0;
     player1->current_frame_walk = 0;
+    player1->flipMode = SDL_FLIP_NONE;
+    player1->player_speed = 20.0f;
+
     strncpy(player1->anim_path, "./resources/Sprites/Red_Team/Fire_Wizard/Idle_Animation.gif", sizeof(player1->anim_path) - 1);
     player1->anim_path[sizeof(player1->anim_path) - 1] = '\0'; // Ensure null termination
 
     strncpy(player1->walk_anim_path, "./resources/Sprites/Red_Team/Fire_Wizard/Walk_animation.gif", sizeof(player1->walk_anim_path) - 1);
     player1->walk_anim_path[sizeof(player1->walk_anim_path) - 1] = '\0'; // Ensure null termination
 
-    strncpy(player1->walk_texture, "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png", sizeof(player1->sprite_sheet_path) - 1);
+    strncpy(player1->sprite_sheet_path, "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png", sizeof(player1->sprite_sheet_path) - 1);
     player1->sprite_sheet_path[sizeof(player1->sprite_sheet_path) - 1] = '\0'; // Ensure null termination
     // player1->anim_path[256] = "./resources/Sprites/Red_Team/Fire_Wizard/Idle_Animation.gif";
     // player1->walk_anim_path[256] = "./resources/Sprites/Red_Team/Fire_Wizard/Walk_animation.gif";
@@ -54,7 +57,7 @@ Player *createPlayer(SDL_Renderer *pRenderer, int windowWidth, int windowHeight)
         SDL_Log("Error loading walk animation: %s \n", SDL_GetError());
         return NULL; // Signal initialization failure
     }
-    if (!player1->player_walkTexture)
+    if (!player1->player_texture)
     {
         SDL_Log("Error loading sprite sheet for player: %s\n", SDL_GetError());
         return NULL; // Signal initialization failure
@@ -66,7 +69,6 @@ Player *createPlayer(SDL_Renderer *pRenderer, int windowWidth, int windowHeight)
     for (int i = 0; i < player1->walk_anim->count; i++)
     player1->player_walkAnimTextures[i] = SDL_CreateTextureFromSurface(pRenderer, player1->walk_anim->frames[i]);
 
-    player1->player_speed = 20.0f;
     return player1;
 }
 
@@ -92,11 +94,12 @@ void update_player(Player *player)
     }
     if (keyboard_state[SDL_SCANCODE_A] && player->playerPos.x > 0)
     {
+        player->flipMode = SDL_FLIP_HORIZONTAL;
         player->playerPos.x -= player->player_speed * player->delta_time;
-        player->player_srcrect.y = 189.0f;
-        player->player_srcrect.x += 135.0f;
-        if (player->player_srcrect.x > 700)
-            player->player_srcrect.x = 47.0f;
+        player->player_srcrect.y = 80.0f;
+        player->player_srcrect.x += 48.0f;
+        if (player->player_srcrect.x > 270)
+            player->player_srcrect.x = 0;
     }
     if (keyboard_state[SDL_SCANCODE_D] && player->playerPos.x < player->windowWidth - PLAYER_WIDTH)
     {
@@ -108,6 +111,14 @@ void update_player(Player *player)
     }
     if (keyboard_state[SDL_SCANCODE_D] && keyboard_state[SDL_SCANCODE_TAB]) {
         player->playerPos.x += player->player_speed * 2.5 * player->delta_time;
+        player->player_srcrect.y = 80 * 2;
+        player->player_srcrect.x += 48;
+        if (player->player_srcrect.x > 370)
+            player->player_srcrect.x = 0;
+    }
+    if (keyboard_state[SDL_SCANCODE_A] && keyboard_state[SDL_SCANCODE_TAB]) {
+        player->flipMode = SDL_FLIP_HORIZONTAL;
+        player->playerPos.x -= player->player_speed * 2.5 * player->delta_time;
         player->player_srcrect.y = 80 * 2;
         player->player_srcrect.x += 48;
         if (player->player_srcrect.x > 370)
@@ -151,8 +162,8 @@ void render_player(Player *player, SDL_Renderer *renderer)
 {
     SDL_FRect srcrect = {player->player_srcrect.x, player->player_srcrect.y, PLAYER_WIDTH, PLAYER_HEIGHT};
     SDL_FRect player1PosDest = {player->playerPos.x, player->playerPos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
-    SDL_RenderTexture(renderer, player->player_walkTexture, &srcrect, &player1PosDest);
-
+    SDL_RenderTextureRotated(renderer, player->player_texture, &srcrect, &player1PosDest, 0, NULL, player->flipMode);
+    player->flipMode = SDL_FLIP_NONE;
     // SDL_FRect player2PosDest = {player2Pos.x, player2Pos.y, PLAYER_WIDTH, PLAYER_HEIGHT};
     // SDL_RenderTexture(renderer, player_walkTexture, &srcrect, &player2PosDest);
 
