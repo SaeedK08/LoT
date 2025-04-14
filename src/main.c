@@ -5,32 +5,29 @@
 #include <SDL3_net/SDL_net.h>
 
 #include "../include/player.h"
-
+#include "../include/damage.h"
 
 #include <stdlib.h>
-
 
 #define WINDOW_W 1600
 #define WINDOW_H 900
 
-
-struct AppState{
+struct AppState
+{
     SDL_Window *pWindow;     // SDL window structure
     SDL_Renderer *pRenderer; // SDL renderer structure
-    Player *player; // Pointer to the player structure
-    int windowWidth;       // Window width
-    int windowHeight;      // Window height
-
+    Player *player;          // Pointer to the player structure
+    int windowWidth;         // Window width
+    int windowHeight;        // Window height
 };
 
 typedef struct AppState AppState; // Define a type alias for the game structure
-
 
 // Callback for application shutdown
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
     AppState *pState = (AppState *)appstate; // Cast appstate to the correct type
-    SDL_DestroyRenderer(pState->pRenderer); // Clean up the renderer
+    SDL_DestroyRenderer(pState->pRenderer);  // Clean up the renderer
     pState->pRenderer = NULL;
     SDL_DestroyWindow(pState->pWindow); // Clean up the window
     pState->pWindow = NULL;
@@ -45,15 +42,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         return SDL_APP_SUCCESS; // Signal to quit the app
     }
-    // // Check for left click
-    // if (event->button.button == 1)
-    // {
-    //     funcCheckHit((SDL_FPoint){event->button.x, event->button.y});
-    // }
+    // Check for left click
+    if (event->button.button == 1)
+    {
+        AppState *pState = (AppState *)appstate; // Cast appstate to the correct type
+        funcCheckHit((SDL_FPoint){event->button.x, event->button.y}, pState->player);
+    }
 
     return SDL_APP_CONTINUE; // Continue processing events
 }
-
 
 void update(AppState *pState)
 {
@@ -63,10 +60,10 @@ void update(AppState *pState)
 // // Function to render the scene
 void render(AppState *pState)
 {
-    SDL_RenderClear(pState->pRenderer); // Clear the rendering target
+    SDL_RenderClear(pState->pRenderer);                    // Clear the rendering target
     SDL_SetRenderDrawColor(pState->pRenderer, 0, 0, 0, 0); // Set the draw color
-    render_player(pState->player, pState->pRenderer); // Call the render function for the player
-    SDL_RenderPresent(pState->pRenderer); // Update the screen
+    render_player(pState->player, pState->pRenderer);      // Call the render function for the player
+    SDL_RenderPresent(pState->pRenderer);                  // Update the screen
 }
 
 // Callback for each iteration of the main loop
@@ -75,7 +72,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     AppState *pState = (AppState *)appstate; // Cast appstate to the correct type
 
     update(pState);
-    render(pState);                // Call the render function
+    render(pState);          // Call the render function
     return SDL_APP_CONTINUE; // Continue the main loop
 }
 
@@ -86,23 +83,23 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (!pState)
     {
         SDL_Log("Failed to allocate memory for game structure"); // Log error
-        return SDL_APP_FAILURE;                                   // Signal initialization failure
+        return SDL_APP_FAILURE;                                  // Signal initialization failure
     }
-    // Initialize SDL 
+    // Initialize SDL
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         SDL_Log("SDL_Init() failed: %s", SDL_GetError()); // Log SDL error
         return SDL_APP_FAILURE;                           // Signal initialization failure
     }
 
-    pState->windowWidth = WINDOW_W;   // Set window width
-    pState->windowHeight = WINDOW_H;  // Set window height
+    pState->windowWidth = WINDOW_W;  // Set window width
+    pState->windowHeight = WINDOW_H; // Set window height
     // Create the main window
     pState->pWindow = SDL_CreateWindow(
-        "League Of Tigers",         // Window title
-        WINDOW_W,                   // Window width
-        WINDOW_H,                   // Window height
-        SDL_WINDOW_RESIZABLE        // Window flags
+        "League Of Tigers",  // Window title
+        WINDOW_W,            // Window width
+        WINDOW_H,            // Window height
+        SDL_WINDOW_RESIZABLE // Window flags
     );
 
     if (!pState->pWindow)
@@ -118,20 +115,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("SDL_CreateRenderer() failed: %s", SDL_GetError()); // Log SDL error
         return SDL_APP_FAILURE;                                     // Signal initialization failure
     }
-    pState->player = createPlayer(pState->pRenderer, pState->windowWidth, pState->windowHeight); // Create the player
+
+    pState->player = createPlayer(pState->pRenderer, WINDOW_W, WINDOW_H); // Create the player
+
     if (!pState->player)
     {
         SDL_Log("Error creating player: %s \n", SDL_GetError()); // Log error
-        return SDL_APP_FAILURE;                                   // Signal initialization failure
+        return SDL_APP_FAILURE;                                  // Signal initialization failure
     }
 
-    // if (!init_player(pState->pRenderer))
-    //  {
-    //      SDL_Log("Erorr initializing a player: %s \n", SDL_GetError());
-    //      return SDL_APP_FAILURE;
-    //  }
+    *appstate = pState; // Assign the allocated memory to the appstate pointer
 
-     *appstate = pState; // Assign the allocated memory to the appstate pointer
-    
     return SDL_APP_CONTINUE; // Signal successful initialization
 }

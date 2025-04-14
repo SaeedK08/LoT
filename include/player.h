@@ -1,7 +1,6 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-
 #define PLAYER_WIDTH 35
 #define PLAYER_HEIGHT 67
 
@@ -12,11 +11,8 @@
 typedef struct Player Player; // Define a type alias for the player structure
 Player *createPlayer(SDL_Renderer *pRenderer, int windowWidth, int windowHeight);
 
-
-// bool init_player(SDL_Renderer *renderer);
 void render_player(Player *player, SDL_Renderer *renderer);
 void update_player(Player *player);
-SDL_FPoint funcGetPlayerPosition(void);
-// SDL_FPoint funcGetPlayer2Position(void);
+SDL_FPoint funcGetPlayerPosition(Player *player);
 
 #endif
