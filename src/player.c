@@ -49,18 +49,35 @@ void update_player(Player *player)
 
     if (keyboard_state[SDL_SCANCODE_W] && player->playerPos.y > 0)
     {
-        player->playerPos.y -= player->player_speed * player->delta_time;
+        float futurePos = player->playerPos.y - player->player_speed * player->delta_time;
+
+        if ((futurePos + PLAYER_HEIGHT) >= 320) // Collision with CliffWall layer
+            player->playerPos.y = futurePos;
     }
 
     if (keyboard_state[SDL_SCANCODE_S] && player->playerPos.y <= player->windowHeight - PLAYER_HEIGHT)
     {
-        player->playerPos.y += player->player_speed * player->delta_time;
+        float futurePos = player->playerPos.y + player->player_speed * player->delta_time;
+
+        if ((futurePos + PLAYER_HEIGHT) <= 1440) // Collision with Water layer
+            player->playerPos.y = futurePos;
     }
 
-    if (keyboard_state[SDL_SCANCODE_A] && player->playerPos.x > 0)
+    if (keyboard_state[SDL_SCANCODE_A])
     {
         player->flipMode = SDL_FLIP_HORIZONTAL;
-        player->playerPos.x -= player->player_speed * player->delta_time;
+
+        float futurePos = player->playerPos.x - player->player_speed * player->delta_time;
+
+        if (futurePos >= 0) // Collision with left window
+        {
+            player->playerPos.x = futurePos;
+        }
+        else
+        {
+            player->playerPos.x = 0;
+        }
+
         player->player_srcrect.y = 80.0f;
         player->player_srcrect.x += 48.0f;
         if (player->player_srcrect.x > 270)
@@ -69,24 +86,35 @@ void update_player(Player *player)
 
     if (keyboard_state[SDL_SCANCODE_D] && player->playerPos.x < player->windowWidth - PLAYER_WIDTH)
     {
-        player->playerPos.x += player->player_speed * player->delta_time;
+        float futurePos = player->playerPos.x + player->player_speed * player->delta_time;
+
+        if ((futurePos) <= 3200) // Collision with right window
+        {
+            player->playerPos.x = futurePos;
+        }
+        else
+        {
+            player->playerPos.x = 3200;
+        }
+
         player->player_srcrect.y = 80.0f;
         player->player_srcrect.x += 48.0f;
         if (player->player_srcrect.x > 270)
             player->player_srcrect.x = 0;
     }
-    if (keyboard_state[SDL_SCANCODE_D] && keyboard_state[SDL_SCANCODE_TAB])
+
+    if (keyboard_state[SDL_SCANCODE_A] && keyboard_state[SDL_SCANCODE_TAB])
     {
-        player->playerPos.x += player->player_speed * 2.5 * player->delta_time;
+        player->flipMode = SDL_FLIP_HORIZONTAL;
+        player->playerPos.x -= player->player_speed * 2.5 * player->delta_time;
         player->player_srcrect.y = 80 * 2;
         player->player_srcrect.x += 48;
         if (player->player_srcrect.x > 370)
             player->player_srcrect.x = 0;
     }
-    if (keyboard_state[SDL_SCANCODE_A] && keyboard_state[SDL_SCANCODE_TAB])
+    if (keyboard_state[SDL_SCANCODE_D] && keyboard_state[SDL_SCANCODE_TAB])
     {
-        player->flipMode = SDL_FLIP_HORIZONTAL;
-        player->playerPos.x -= player->player_speed * 2.5 * player->delta_time;
+        player->playerPos.x += player->player_speed * 2.5 * player->delta_time;
         player->player_srcrect.y = 80 * 2;
         player->player_srcrect.x += 48;
         if (player->player_srcrect.x > 370)
