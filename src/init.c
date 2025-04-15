@@ -1,21 +1,25 @@
 #include "../include/init.h"
 
+// SDL3 Application Initialization callback function
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+  // Allocate memory for the application's state structure
   AppState *state = SDL_malloc(sizeof(AppState));
-  *appstate = state;
+  *appstate = state; // Assign the allocated state to the appstate pointer
 
+  // Initialize the SDL video subsystem
   if (!SDL_Init(SDL_INIT_VIDEO))
   {
     SDL_Log("Error initializing SDL: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
+    return SDL_APP_FAILURE; // Return failure if initialization fails
   }
 
+  // Create the application window (Title, Width, Height, Flags)
   state->window = SDL_CreateWindow(
       "SDL3 Game",
-      1280,
-      720,
-      SDL_WINDOW_RESIZABLE);
+      3200,                  // Initial window width
+      1760,                  // Initial window height
+      SDL_WINDOW_RESIZABLE); // Allow the window to be resized
 
   if (!state->window)
   {
@@ -23,6 +27,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
+  // Create the renderer associated with the window
   state->renderer = SDL_CreateRenderer(state->window, NULL);
 
   if (!state->renderer)
@@ -31,11 +36,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
-  // init_map(state->renderer);
-  // init_player(state->renderer);
-  // init_camera(state->renderer);
+  // Initialize game-specific systems
+  init_map(state->renderer);
+  init_player(state->renderer);
+  init_camera(state->renderer);
 
+  // Set the logical size for rendering (affects scaling and zoom)
+  // Renders at 320x180, then scales to window size with letterboxing
   SDL_SetRenderLogicalPresentation(state->renderer, 320, 180, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
+  // Indicate successful initialization and continue the app lifecycle
   return SDL_APP_CONTINUE;
 }
