@@ -8,8 +8,8 @@
 #include "../include/map.h"
 
 // Player sprite dimensions
-#define PLAYER_WIDTH 35
-#define PLAYER_HEIGHT 67
+#define PLAYER_WIDTH 48
+#define PLAYER_HEIGHT 80
 
 // Global variable storing the player's current world position
 extern SDL_FPoint player_position;
