@@ -1,7 +1,7 @@
 #include "../include/player.h"
 
 // Global variable storing the player's current world position
-SDL_FPoint player_position = {400.0f, 400.0f};
+SDL_FPoint player_position = {40.0f, 40.0f};
 
 // --- Static variables local to this file ---
 static SDL_Texture *player_texture;            // Texture containing the player sprite sheet
@@ -124,67 +124,24 @@ static void update(float delta_time)
   // Ensure sprite portion uses defined width/height
   sprite_portion.w = PLAYER_WIDTH;
   sprite_portion.h = PLAYER_HEIGHT;
-
-  // --- Clamp player position to map boundaries ---
-  // Check against left edge
-  if (player_position.x <= PLAYER_WIDTH)
-  {
-    player_position.x = PLAYER_WIDTH;
-  }
-  // Check against right edge
-  if (player_position.x >= MAP_WIDTH)
-  {
-    player_position.x = MAP_WIDTH;
-  }
-  // Check against CliffWall layer
-  if (player_position.y <= 320)
-  {
-    player_position.y = 320;
-  }
-  // Check against Water layer
-  if (player_position.y >= 1440 - 40)
-  {
-    player_position.y = 1440 - 40;
-  }
 }
 
 // Function to render the player each frame
 static void render(SDL_Renderer *renderer)
 {
-  // Calculate the player's screen X/Y relative to the camera's view center
-  // This is the *target* position if the camera isn't at an edge.
-  float centered_x = camera.w / 2.0f - PLAYER_WIDTH / 2.0f;
-  float centered_y = camera.h / 2.0f - PLAYER_HEIGHT / 2.0f;
+  // Calculate player's screen position based on camera
+  float final_x = camera.w / 2 - PLAYER_WIDTH / 2;
+  float final_y = camera.h / 2 - PLAYER_HEIGHT / 2;
 
-  // Start with the default centered position
-  float final_x = centered_x;
-  float final_y = centered_y;
-
-  // --- Adjust screen position based on camera hitting map edges ---
-
-  // If camera hits the LEFT edge, the player's screen X is just their world X
+  // Adjust screen position if camera hits map boundaries
   if (camera.x <= 0)
-  {
-    final_x = player_position.x;
-  }
-  // If camera hits the RIGHT edge, calculate position relative to the right side of the camera view
-  else if (camera.x + camera.w >= MAP_WIDTH)
-  {
-    // Player's world X relative to the camera's left edge + offset from map edge
-    final_x = player_position.x - (MAP_WIDTH - camera.w);
-  }
-
-  // If camera hits the TOP edge, the player's screen Y is just their world Y
+    final_x = player_position.x - PLAYER_WIDTH / 2;
   if (camera.y <= 0)
-  {
-    final_y = player_position.y;
-  }
-  // If camera hits the BOTTOM edge, calculate position relative to the bottom side of the camera view
-  else if (camera.y + camera.h >= MAP_HEIGHT)
-  {
-    // Player's world Y relative to the camera's top edge + offset from map edge
-    final_y = player_position.y - (MAP_HEIGHT - camera.h);
-  }
+    final_y = player_position.y - PLAYER_HEIGHT / 2;
+  if (camera.x + camera.w >= MAP_WIDTH)
+    final_x = player_position.x - (MAP_WIDTH - camera.w) - PLAYER_WIDTH / 2;
+  if (camera.y + camera.h >= MAP_HEIGHT)
+    final_y = player_position.y - (MAP_HEIGHT - camera.h) - PLAYER_HEIGHT / 2;
 
   // Define the destination rectangle on the screen
   SDL_FRect player_rect = {
