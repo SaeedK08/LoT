@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="200" height="110" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="200" height="110" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="4">
  <editorsettings>
   <export target="tiledMap.json" format="json"/>
  </editorsettings>
  <tileset firstgid="1" name="Wall_Tiles" tilewidth="16" tileheight="16" tilecount="625" columns="25">
-  <image source="./resources/Map/Wall_Tiles.png" width="400" height="400"/>
+  <image source="Wall_Tiles.png" width="400" height="400"/>
  </tileset>
  <tileset firstgid="626" name="Floors_Tiles" tilewidth="16" tileheight="16" tilecount="650" columns="25">
-  <image source="./resources/Map/Floors_Tiles.png" width="400" height="416"/>
+  <image source="Floors_Tiles.png" width="400" height="416"/>
  </tileset>
  <tileset firstgid="1276" name="Water_tiles" tilewidth="16" tileheight="16" tilecount="625" columns="25">
-  <image source="./resources/Map/Water_tiles.png" width="400" height="400"/>
+  <image source="Water_tiles.png" width="400" height="400"/>
  </tileset>
  <layer id="2" name="Water" width="200" height="110">
   <data encoding="csv">
@@ -582,4 +582,8 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="8" name="Collision">
+  <object id="2" x="-0.0909091" y="0.375" width="3199.72" height="303.352"/>
+  <object id="3" x="0.03125" y="1456.06" width="3199.78" height="303.813"/>
+ </objectgroup>
 </map>

@@ -5,3 +5,4 @@
 #include "../include/player.h"
 #include "../include/map.h"
 #include "../include/camera.h"
+#include "../include/net.h"

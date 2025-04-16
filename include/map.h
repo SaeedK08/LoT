@@ -18,4 +18,4 @@ typedef struct Texture
   struct Texture *next;
 } Texture;
 
-void init_map(SDL_Renderer *renderer);
+SDL_AppResult init_map(SDL_Renderer *renderer);
