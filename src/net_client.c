@@ -16,8 +16,7 @@ static void cleanup()
         SDLNet_UnrefAddress(serverAddress);
         serverAddress = NULL;
     }
-    SDLNet_Quit();
-    SDL_Log("Client SDLNet cleaned up.");
+    SDL_Log("Client network resources cleaned up.");
     isConnected = false;
 }
 
@@ -29,12 +28,11 @@ static void update(float delta_time)
         int address_status = SDLNet_GetAddressStatus(serverAddress);
         if (address_status == 1)
         {
-            SDL_Log("Hostname resolved.");
             serverConnection = SDLNet_CreateClient(serverAddress, SERVER_PORT);
             if (serverConnection == NULL)
             {
                 SDL_LogError(SDL_LOG_CATEGORY_ERROR, "CreateClient failed: %s", SDL_GetError());
-                SDLNet_UnrefAddress(serverAddress); // Clean up address if connection couldn't start
+                SDLNet_UnrefAddress(serverAddress);
                 serverAddress = NULL;
             }
             else
@@ -59,17 +57,16 @@ static void update(float delta_time)
             isConnected = true;
             SDL_Log("Connected to server!");
 
-            // Send initial message
-            const char *message = "Hello Server!";
-            SDL_Log("Sending: %s", message);
-            bool sentSuccess = SDLNet_WriteToStreamSocket(serverConnection, message, SDL_strlen(message));
+            // Send initial message type
+            uint8_t msg_type = MSG_TYPE_C_HELLO;
+            SDL_Log("Sending C_HELLO message type (%d)", msg_type);
+            bool sentSuccess = SDLNet_WriteToStreamSocket(serverConnection, &msg_type, sizeof(msg_type));
             if (!sentSuccess)
             {
                 SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Initial send failed: %s. Disconnecting.", SDL_GetError());
                 SDLNet_DestroyStreamSocket(serverConnection);
                 serverConnection = NULL;
                 isConnected = false;
-                // Also clean up address if initial send failed right after connect
                 if (serverAddress != NULL)
                 {
                     SDLNet_UnrefAddress(serverAddress);
@@ -82,7 +79,6 @@ static void update(float delta_time)
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "GetConnectionStatus failed: %s", SDL_GetError());
             SDLNet_DestroyStreamSocket(serverConnection);
             serverConnection = NULL;
-            // Also clean up address if connection failed
             if (serverAddress != NULL)
             {
                 SDLNet_UnrefAddress(serverAddress);
@@ -96,19 +92,37 @@ static void update(float delta_time)
     {
         char buffer[512];
         int bytesReceived;
-        bytesReceived = SDLNet_ReadFromStreamSocket(serverConnection, buffer, sizeof(buffer) - 1);
+        bytesReceived = SDLNet_ReadFromStreamSocket(serverConnection, buffer, sizeof(buffer));
 
         if (bytesReceived > 0)
         {
-            buffer[bytesReceived] = '\0';
-            SDL_Log("Received: %s", buffer);
+            if (bytesReceived >= sizeof(uint8_t)) // Need at least 1 byte for type
+            {
+                uint8_t msg_type_byte = buffer[0]; // Get the first byte
+
+                switch (msg_type_byte)
+                {
+                case MSG_TYPE_S_WELCOME:
+                    SDL_Log("Received S_WELCOME from server");
+                    // Client is now fully welcomed by server
+                    break;
+
+                default:
+                    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received unknown message type (%d) from server", msg_type_byte);
+                    break;
+                }
+            }
+            else
+            {
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received incomplete message (less than 1 byte?) from server");
+            }
         }
         else if (bytesReceived < 0)
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "ReadStreamSocket failed: %s. Disconnected.", SDL_GetError());
             SDLNet_DestroyStreamSocket(serverConnection);
             serverConnection = NULL;
-            isConnected = false; // Reset connection flag
+            isConnected = false;
         }
     }
 }
@@ -116,11 +130,6 @@ static void update(float delta_time)
 SDL_AppResult init_client()
 {
     isConnected = false;
-    if (!SDLNet_Init())
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Client SDLNet_Init failed: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
 
     serverAddress = SDLNet_ResolveHostname(HOSTNAME);
     if (serverAddress == NULL)
@@ -134,5 +143,6 @@ SDL_AppResult init_client()
         .update = update,
         .cleanup = cleanup};
     create_entity(client_e);
+
     return SDL_APP_SUCCESS;
 }

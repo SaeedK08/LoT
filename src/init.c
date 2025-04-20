@@ -36,6 +36,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
+  if (!SDLNet_Init())
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDLNet_Init failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
   // Initialize game-specific systems
   init_server();
   init_client();
