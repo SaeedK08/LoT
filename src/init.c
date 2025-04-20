@@ -37,7 +37,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
 
   // Initialize game-specific systems
-  init_net();
+  init_server();
+  init_client();
   init_map(state->renderer);
   init_player(state->renderer);
   init_camera(state->renderer);

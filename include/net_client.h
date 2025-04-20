@@ -3,5 +3,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
 #include "../include/common.h"
+#include "../include/net_server.h"
 
-SDL_AppResult init_net();
+#define HOSTNAME "localhost"
+
+SDL_AppResult init_client();
