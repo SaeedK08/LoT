@@ -6,10 +6,17 @@
 
 typedef enum
 {
-  MSG_TYPE_INVALID = 0,   // Should not be sent
-  MSG_TYPE_C_HELLO = 1,   // Client -> Server: Initial connection message
-  MSG_TYPE_S_WELCOME = 2, // Server -> Client: Acknowledgment of connection
+  MSG_TYPE_INVALID = 0,
+  MSG_TYPE_C_HELLO = 1,
+  MSG_TYPE_S_WELCOME = 2,
+  MSG_TYPE_PLAYER_POS = 3
 } MessageType;
+
+typedef struct
+{
+  uint8_t client_id;
+  SDL_FPoint position;
+} PlayerPosUpdateData;
 
 typedef struct AppState
 {

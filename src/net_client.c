@@ -1,8 +1,15 @@
 #include "../include/net_client.h"
 
+typedef struct
+{
+    SDL_FPoint position;
+    bool active;
+} RemotePlayer;
+
 static SDLNet_Address *serverAddress = NULL;
 static SDLNet_StreamSocket *serverConnection = NULL;
 static bool isConnected = false;
+static RemotePlayer remotePlayers[MAX_CLIENTS];
 
 static void cleanup()
 {
@@ -18,6 +25,7 @@ static void cleanup()
     }
     SDL_Log("Client network resources cleaned up.");
     isConnected = false;
+    memset(remotePlayers, 0, sizeof(remotePlayers));
 }
 
 static void update(float delta_time)
@@ -56,23 +64,8 @@ static void update(float delta_time)
         {
             isConnected = true;
             SDL_Log("Connected to server!");
-
-            // Send initial message type
             uint8_t msg_type = MSG_TYPE_C_HELLO;
-            SDL_Log("Sending C_HELLO message type (%d)", msg_type);
             bool sentSuccess = SDLNet_WriteToStreamSocket(serverConnection, &msg_type, sizeof(msg_type));
-            if (!sentSuccess)
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Initial send failed: %s. Disconnecting.", SDL_GetError());
-                SDLNet_DestroyStreamSocket(serverConnection);
-                serverConnection = NULL;
-                isConnected = false;
-                if (serverAddress != NULL)
-                {
-                    SDLNet_UnrefAddress(serverAddress);
-                    serverAddress = NULL;
-                }
-            }
         }
         else if (connection_status == -1)
         {
@@ -87,39 +80,74 @@ static void update(float delta_time)
         }
     }
 
-    // Handle active connection (receiving)
+    // Handle active connection (receiving and sending position)
     if (isConnected && serverConnection != NULL)
     {
-        char buffer[512];
+        // --- Receive Data ---
+        char buffer[BUFFER_SIZE];
         int bytesReceived;
         bytesReceived = SDLNet_ReadFromStreamSocket(serverConnection, buffer, sizeof(buffer));
 
         if (bytesReceived > 0)
         {
-            if (bytesReceived >= sizeof(uint8_t)) // Need at least 1 byte for type
+            if (bytesReceived >= sizeof(uint8_t))
             {
-                uint8_t msg_type_byte = buffer[0]; // Get the first byte
-
+                uint8_t msg_type_byte = buffer[0];
                 switch (msg_type_byte)
                 {
                 case MSG_TYPE_S_WELCOME:
                     SDL_Log("Received S_WELCOME from server");
-                    // Client is now fully welcomed by server
+                    break;
+
+                case MSG_TYPE_PLAYER_POS:
+                    // Expecting Type + PlayerPosUpdateData (ID + Pos)
+                    if (bytesReceived >= (1 + sizeof(PlayerPosUpdateData)))
+                    {
+                        PlayerPosUpdateData update_data;
+                        memcpy(&update_data, buffer + 1, sizeof(PlayerPosUpdateData));
+
+                        uint8_t remote_client_id = update_data.client_id;
+                        if (remote_client_id < MAX_CLIENTS)
+                        { // Basic bounds check
+                            // Store position and mark active
+                            remotePlayers[remote_client_id].position = update_data.position;
+                            remotePlayers[remote_client_id].active = true;
+                            // SDL_Log("Stored position for player %d", remote_client_id);
+                        }
+                        else
+                        {
+                            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Rcvd POS update invalid client ID: %d", remote_client_id);
+                        }
+                    }
+                    else
+                    {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Rcvd incomplete PLAYER_POS message from server");
+                    }
                     break;
 
                 default:
-                    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received unknown message type (%d) from server", msg_type_byte);
+                    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Rcvd unknown message type (%d) from server", msg_type_byte);
                     break;
                 }
-            }
-            else
-            {
-                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received incomplete message (less than 1 byte?) from server");
             }
         }
         else if (bytesReceived < 0)
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "ReadStreamSocket failed: %s. Disconnected.", SDL_GetError());
+            SDLNet_DestroyStreamSocket(serverConnection);
+            serverConnection = NULL;
+            isConnected = false;
+            return; // Skip sending if read failed
+        }
+
+        // --- Send Own Position Data ---
+        uint8_t send_buffer[1 + sizeof(SDL_FPoint)];
+        send_buffer[0] = MSG_TYPE_PLAYER_POS;
+        memcpy(send_buffer + 1, &player_position, sizeof(SDL_FPoint));
+        bool sentSuccess = SDLNet_WriteToStreamSocket(serverConnection, send_buffer, sizeof(send_buffer));
+        if (!sentSuccess)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Send position failed: %s. Disconnecting.", SDL_GetError());
             SDLNet_DestroyStreamSocket(serverConnection);
             serverConnection = NULL;
             isConnected = false;
@@ -130,6 +158,7 @@ static void update(float delta_time)
 SDL_AppResult init_client()
 {
     isConnected = false;
+    memset(remotePlayers, 0, sizeof(remotePlayers)); // Initialize remote player data
 
     serverAddress = SDLNet_ResolveHostname(HOSTNAME);
     if (serverAddress == NULL)
@@ -138,11 +167,7 @@ SDL_AppResult init_client()
         return SDL_APP_FAILURE;
     }
 
-    Entity client_e = {
-        .name = "net_client",
-        .update = update,
-        .cleanup = cleanup};
+    Entity client_e = {.name = "net_client", .update = update, .cleanup = cleanup};
     create_entity(client_e);
-
     return SDL_APP_SUCCESS;
 }
