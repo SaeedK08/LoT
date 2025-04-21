@@ -6,6 +6,7 @@
 #include "../include/entity.h"
 #include "../include/camera.h"
 #include "../include/map.h"
+#include "../include/net_client.h"
 
 // Player sprite dimensions
 #define PLAYER_WIDTH 35
@@ -14,5 +15,6 @@
 // Global variable storing the player's current world position
 extern SDL_FPoint player_position;
 
-// Function to initialize the player entity
 void init_player(SDL_Renderer *renderer);
+
+void render_remote_players(SDL_Renderer *renderer);
