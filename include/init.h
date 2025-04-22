@@ -1,6 +1,10 @@
 #pragma once
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
+
+#include <stdbool.h>
+#include <string.h>
+
 #include "../include/common.h"
 #include "../include/net_server.h"
 #include "../include/net_client.h"

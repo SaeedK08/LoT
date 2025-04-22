@@ -6,11 +6,10 @@
 // Represents the game camera's view area
 typedef struct
 {
-  float x, y, w, h; // Position (x, y) and dimensions (width, height)
+  float x, y, w, h;
 } Camera;
 
 // Global camera instance
 extern Camera camera;
 
-// Function to initialize the camera system
-void init_camera(SDL_Renderer *renderer);
+SDL_AppResult init_camera(SDL_Renderer *renderer);

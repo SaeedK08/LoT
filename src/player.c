@@ -62,6 +62,7 @@ static void update(float delta_time)
     is_moving = 1;
   }
 
+  // Clamp player position to map boundaries
   if (player_position.x < PLAYER_WIDTH / 2.0f)
     player_position.x = PLAYER_WIDTH / 2.0f;
   if (player_position.y < PLAYER_HEIGHT / 2.0f)
@@ -71,56 +72,37 @@ static void update(float delta_time)
   if (player_position.y > MAP_HEIGHT - PLAYER_HEIGHT / 2.0f)
     player_position.y = MAP_HEIGHT - PLAYER_HEIGHT / 2.0f;
 
+  // Animation logic
   if (is_moving)
   {
-    // If we weren't moving before, or switched animation row, reset frame
     if (sprite_portion.y != WALK_ROW_Y)
     {
       current_frame = 0;
       anim_timer = 0.0f;
       sprite_portion.y = WALK_ROW_Y;
     }
-
-    // Update animation timer
     anim_timer += delta_time;
-
-    // Advance frame if timer exceeds threshold
     if (anim_timer >= TIME_PER_FRAME)
     {
-      anim_timer -= TIME_PER_FRAME; // Reset timer, keeping remainder
-      current_frame++;
-      if (current_frame >= NUM_WALK_FRAMES) // Wrap frame index
-      {
-        current_frame = 0;
-      }
+      anim_timer -= TIME_PER_FRAME;
+      current_frame = (current_frame + 1) % NUM_WALK_FRAMES;
     }
-    // Calculate current frame's X position in the spritesheet
     sprite_portion.x = current_frame * FRAME_WIDTH;
   }
-  else // Not moving - Handle Idle Animation FOR LOCAL PLAYER
+  else // Idle Animation
   {
-    // If we were moving before, or switched to idle row, reset frame
     if (sprite_portion.y != IDLE_ROW_Y)
     {
       current_frame = 0;
       anim_timer = 0.0f;
-      sprite_portion.y = IDLE_ROW_Y; // Set Y coordinate for idle animation
+      sprite_portion.y = IDLE_ROW_Y;
     }
-
-    // Update animation timer for idle
     anim_timer += delta_time;
-
-    // Advance idle frame if timer exceeds threshold
     if (anim_timer >= TIME_PER_FRAME)
     {
       anim_timer -= TIME_PER_FRAME;
-      current_frame++;
-      if (current_frame >= NUM_IDLE_FRAMES) // Wrap idle frame index
-      {
-        current_frame = 0;
-      }
+      current_frame = (current_frame + 1) % NUM_IDLE_FRAMES;
     }
-    // Calculate current idle frame's X position
     sprite_portion.x = current_frame * FRAME_WIDTH;
   }
   sprite_portion.w = FRAME_WIDTH;
@@ -130,6 +112,7 @@ static void update(float delta_time)
 // Render the LOCAL player each frame
 static void render(SDL_Renderer *renderer)
 {
+  // Calculate screen position based on world position and camera
   float screen_x = player_position.x - camera.x - PLAYER_WIDTH / 2.0f;
   float screen_y = player_position.y - camera.y - PLAYER_HEIGHT / 2.0f;
 
@@ -139,6 +122,7 @@ static void render(SDL_Renderer *renderer)
       PLAYER_WIDTH,
       PLAYER_HEIGHT};
 
+  // Render the current sprite frame
   SDL_RenderTextureRotated(renderer, player_texture, &sprite_portion, &player_dest_rect, 0, NULL, flip_mode);
 }
 
@@ -147,9 +131,10 @@ void render_remote_players(SDL_Renderer *renderer)
   if (!player_texture)
     return; // Don't render if texture isn't loaded
 
+  // Use a fixed portion of the sprite sheet for remote players for now
   SDL_FRect remote_sprite_portion = {
-      0.0f,
-      IDLE_ROW_Y,
+      0.0f,       // First frame
+      IDLE_ROW_Y, // Idle animation row
       FRAME_WIDTH,
       FRAME_HEIGHT};
 
@@ -157,7 +142,7 @@ void render_remote_players(SDL_Renderer *renderer)
   {
     if (remotePlayers[i].active)
     {
-      // Calculate remote player's screen position based on their world position relative to camera
+      // Calculate remote player's screen position
       float screen_x = remotePlayers[i].position.x - camera.x - PLAYER_WIDTH / 2.0f;
       float screen_y = remotePlayers[i].position.y - camera.y - PLAYER_HEIGHT / 2.0f;
 
@@ -167,24 +152,27 @@ void render_remote_players(SDL_Renderer *renderer)
           PLAYER_WIDTH,
           PLAYER_HEIGHT};
 
+      // Render the remote player
       SDL_RenderTexture(renderer, player_texture, &remote_sprite_portion, &remote_player_dest_rect);
     }
   }
 }
 
-void init_player(SDL_Renderer *renderer)
+SDL_AppResult init_player(SDL_Renderer *renderer)
 {
   const char path[] = "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png";
   player_texture = IMG_LoadTexture(renderer, path);
 
   if (!player_texture)
   {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load player texture at %s: %s", path, SDL_GetError());
-    return;
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to load player texture '%s': %s", __func__, path, SDL_GetError());
+    return SDL_APP_FAILURE;
   }
 
+  // Set texture scaling mode
   SDL_SetTextureScaleMode(player_texture, SDL_SCALEMODE_NEAREST);
 
+  // Initialize sprite portion to the first idle frame
   sprite_portion.x = 0 * FRAME_WIDTH;
   sprite_portion.y = IDLE_ROW_Y;
   sprite_portion.w = FRAME_WIDTH;
@@ -197,6 +185,14 @@ void init_player(SDL_Renderer *renderer)
       .update = update,
       .render = render};
 
-  create_entity(player_entity);
+  if (create_entity(player_entity) == SDL_APP_FAILURE)
+  {
+    // Cleanup texture if entity creation failed after loading
+    SDL_DestroyTexture(player_texture);
+    player_texture = NULL;
+    return SDL_APP_FAILURE;
+  }
+
   SDL_Log("Player entity initialized.");
+  return SDL_APP_SUCCESS;
 }

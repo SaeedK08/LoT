@@ -7,67 +7,70 @@ typedef struct
     bool active;
 } ClientInfo;
 
-// --- Static Variables ---
+// Static Variables
 static SDLNet_Server *serverSocket = NULL;
 static ClientInfo clients[MAX_CLIENTS];
 
-// --- Forward Declarations ---
+// Forward Declarations
 static void disconnectClient(int clientIndex);
-static void acceptConnections(void);
+static SDL_AppResult acceptConnections(void);
 static void broadcast_position(int senderIndex, const PlayerPosUpdateData *update_data);
 static void process_client_message(int clientIndex, char *buffer, int bytesReceived);
 static void handle_single_client(int clientIndex);
 
-// --- Entity Functions ---
-
 static void cleanup()
 {
+    // Client Cleanup
     for (int i = 0; i < MAX_CLIENTS; ++i)
     {
         if (clients[i].active && clients[i].socket != NULL)
         {
-            disconnectClient(i); // Use disconnect to ensure proper cleanup
+            disconnectClient(i);
         }
     }
-    // Clear the array after disconnecting all
-    memset(clients, 0, sizeof(clients));
+    memset(clients, 0, sizeof(clients)); // Clear the array
 
+    // Server Socket Cleanup
     if (serverSocket != NULL)
     {
         SDLNet_DestroyServer(serverSocket);
         serverSocket = NULL;
     }
-    SDL_Log("Server network resources cleaned up.");
 }
 
 // Disconnects a client, cleans up their resources
 static void disconnectClient(int clientIndex)
 {
+    // Input Validation
     if (clientIndex < 0 || clientIndex >= MAX_CLIENTS || !clients[clientIndex].active)
         return;
 
-    SDL_Log("Disconnecting client %d.", clientIndex);
+    // Socket Cleanup
     if (clients[clientIndex].socket != NULL)
     {
         SDLNet_DestroyStreamSocket(clients[clientIndex].socket);
-        clients[clientIndex].socket = NULL; // Important to nullify after destroy
+        clients[clientIndex].socket = NULL;
     }
+    // Reset State
     clients[clientIndex].active = false;
-    clients[clientIndex].position.x = 0;
-    clients[clientIndex].position.y = 0;
+    clients[clientIndex].position = (SDL_FPoint){0.0f, 0.0f};
 }
 
 // Accepts any new incoming connections
-static void acceptConnections()
+static SDL_AppResult acceptConnections(void)
 {
     if (serverSocket == NULL)
-        return;
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Server socket is NULL.", __func__);
+        return SDL_APP_FAILURE; // Cannot accept if server isn't initialized
+    }
 
     SDLNet_StreamSocket *newClientSocket = NULL;
-    // Loop to accept all pending connections in this frame
+
     while (SDLNet_AcceptClient(serverSocket, &newClientSocket) && newClientSocket != NULL)
     {
         int clientSlot = -1;
+        // Find Available Slot
         for (int i = 0; i < MAX_CLIENTS; ++i)
         {
             if (!clients[i].active)
@@ -77,43 +80,55 @@ static void acceptConnections()
             }
         }
 
+        // Handle Connection
         if (clientSlot != -1)
         {
             clients[clientSlot].socket = newClientSocket;
             clients[clientSlot].active = true;
-            clients[clientSlot].position = (SDL_FPoint){0.0f, 0.0f}; // Default position
-            SDL_Log("Client connected (Slot %d)", clientSlot);
+            clients[clientSlot].position = (SDL_FPoint){0.0f, 0.0f};
             newClientSocket = NULL; // Reset for next potential accept
         }
         else
         {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Server full. Rejecting new client.");
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Server full. Rejecting new client.", __func__);
             SDLNet_DestroyStreamSocket(newClientSocket);
             newClientSocket = NULL;
             break; // Stop trying to accept if server is full
         }
     }
+
+    // Check for actual errors (when SDLNet_AcceptClient returns false or newClientSocket is NULL)
+    const char *error = SDL_GetError();
+    if (error && error[0] != '\0' && strcmp(error, "No incoming connections") != 0)
+    {
+        // SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_AcceptClient failed: %s", __func__, error);
+        // return SDL_APP_FAILURE;
+    }
+    return SDL_APP_SUCCESS; // Return success even if non-fatal accept error occurred
 }
 
 // Broadcasts position data to all clients except the sender
 static void broadcast_position(int senderIndex, const PlayerPosUpdateData *update_data)
 {
+    // Prepare Buffer
     uint8_t broadcast_buffer[1 + sizeof(PlayerPosUpdateData)];
     broadcast_buffer[0] = MSG_TYPE_PLAYER_POS;
     memcpy(broadcast_buffer + 1, update_data, sizeof(PlayerPosUpdateData));
 
+    // Send to Clients
     for (int j = 0; j < MAX_CLIENTS; ++j)
     {
-        // Send to everyone EXCEPT the original sender and inactive slots
+        // Skip sender and inactive/invalid clients
         if (j == senderIndex || !clients[j].active || clients[j].socket == NULL)
         {
             continue;
         }
 
+        // Write Data
         if (!SDLNet_WriteToStreamSocket(clients[j].socket, broadcast_buffer, sizeof(broadcast_buffer)))
         {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Broadcast POS failed (Sender %d, Recipient %d): %s.", senderIndex, j, SDL_GetError());
-            disconnectClient(j); // Disconnect recipient if send failed
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Broadcast POS failed (Sender %d, Recipient %d): %s.", __func__, senderIndex, j, SDL_GetError());
+            disconnectClient(j);
         }
     }
 }
@@ -121,22 +136,23 @@ static void broadcast_position(int senderIndex, const PlayerPosUpdateData *updat
 // Processes a received message from a specific client
 static void process_client_message(int clientIndex, char *buffer, int bytesReceived)
 {
+    // Basic Validation
     if (bytesReceived < (int)sizeof(uint8_t))
     {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received incomplete message (<1 byte) from client %d", clientIndex);
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received incomplete message (<1 byte) from client %d", __func__, clientIndex);
         return;
     }
 
     uint8_t msg_type_byte = buffer[0];
 
+    // Message Handling
     switch (msg_type_byte)
     {
     case MSG_TYPE_C_HELLO:
-        SDL_Log("Received C_HELLO from client %d", clientIndex);
         uint8_t reply_type = MSG_TYPE_S_WELCOME;
         if (!SDLNet_WriteToStreamSocket(clients[clientIndex].socket, &reply_type, sizeof(reply_type)))
         {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Write S_WELCOME failed (Client %d): %s.", clientIndex, SDL_GetError());
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Write S_WELCOME failed (Client %d): %s.", __func__, clientIndex, SDL_GetError());
             disconnectClient(clientIndex);
         }
         break;
@@ -152,16 +168,16 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
             update_data.client_id = (uint8_t)clientIndex;
             update_data.position = clients[clientIndex].position;
 
-            broadcast_position(clientIndex, &update_data);
+            broadcast_position(clientIndex, &update_data); // Relay position
         }
         else
         {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received incomplete PLAYER_POS message from client %d (%d bytes)", clientIndex, bytesReceived);
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received incomplete PLAYER_POS message from client %d (%d bytes)", __func__, clientIndex, bytesReceived);
         }
         break;
 
     default:
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Received unknown message type (%d) from client %d", msg_type_byte, clientIndex);
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received unknown message type (%u) from client %d", __func__, (unsigned int)msg_type_byte, clientIndex);
         break;
     }
 }
@@ -169,14 +185,14 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
 // Reads data from a single client and processes it
 static void handle_single_client(int clientIndex)
 {
-    // Skip inactive clients or those somehow marked active but without a socket
+    // Skip Inactive
     if (!clients[clientIndex].active || clients[clientIndex].socket == NULL)
         return;
 
     char buffer[BUFFER_SIZE];
     int bytesReceived;
 
-    // Non-blocking read loop for this client
+    // Non-Blocking Read Loop
     while (true)
     {
         bytesReceived = SDLNet_ReadFromStreamSocket(clients[clientIndex].socket, buffer, sizeof(buffer));
@@ -184,31 +200,34 @@ static void handle_single_client(int clientIndex)
         if (bytesReceived > 0)
         {
             process_client_message(clientIndex, buffer, bytesReceived);
-            // If we read less than the buffer size, assume no more data for now
+            // Assume no more data if read is less than buffer size
             if (bytesReceived < (int)sizeof(buffer))
             {
                 break;
             }
         }
-        else if (bytesReceived == 0) // No data available right now
+        else if (bytesReceived == 0)
         {
+            // No data currently available
             break;
         }
-        else // bytesReceived < 0 indicates an error/disconnect
+        else // bytesReceived < 0 indicates error/disconnect
         {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Read failed (Client %d): %s.", clientIndex, SDL_GetError());
+            const char *sdlError = SDL_GetError();
+            if (strcmp(sdlError, "Socket is not connected") != 0 && strcmp(sdlError, "Connection reset by peer") != 0)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Read failed (Client %d): %s.", __func__, clientIndex, sdlError);
+            }
             disconnectClient(clientIndex);
-            break; // Exit loop after disconnect
+            break; // Exit loop after disconnect/error
         }
     }
 }
 
-// Main update function for the server entity
 static void update(float delta_time)
 {
     (void)delta_time;
 
-    // Accept any new connections
     acceptConnections();
 
     // Handle data from all currently active clients
@@ -220,20 +239,30 @@ static void update(float delta_time)
 
 SDL_AppResult init_server()
 {
-    memset(clients, 0, sizeof(clients));
+    memset(clients, 0, sizeof(clients)); // Initialize client array
+
+    // Create Server Socket
     serverSocket = SDLNet_CreateServer(NULL, SERVER_PORT);
     if (serverSocket == NULL)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDLNet_CreateServer failed: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_CreateServer failed: %s", __func__, SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    SDL_Log("Server listening on port %d.", SERVER_PORT);
 
+    // Create Server Entity
     Entity server_e = {
         .name = "net_server",
         .update = update,
         .cleanup = cleanup};
-    create_entity(server_e);
+
+    // Check if entity creation succeeded
+    if (create_entity(server_e) == SDL_APP_FAILURE)
+    {
+        SDLNet_DestroyServer(serverSocket);
+        serverSocket = NULL;
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to create server entity.", __func__);
+        return SDL_APP_FAILURE;
+    }
 
     return SDL_APP_SUCCESS;
 }

@@ -16,7 +16,8 @@ typedef struct
 extern Entity entities[MAX_ENTITIES];
 extern int entities_count;
 
-void create_entity(Entity entity);
-void delete_entity(int index);
+SDL_AppResult create_entity(Entity entity);
+SDL_AppResult delete_entity(int index);
+
 void swap_entities(int index1, int index2);
 int find_entity(const char *name);
