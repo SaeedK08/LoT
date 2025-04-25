@@ -31,7 +31,7 @@ static void cleanup()
   }
 }
 
-static void handle_events()
+static void handle_events(void *appstate, SDL_Event *event)
 {
   AppState *pState = (AppState*) (appstate);
   if (event->button.button == 1 && fabsf((event->button.x/4.26f) - (player_position.x - camera.x - PLAYER_WIDTH/2)) <= ATTACK_RANGE) {

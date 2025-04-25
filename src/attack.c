@@ -13,12 +13,12 @@ static FireBall fireBall;
 
 void directFireBall() {
     if (fireBall.fireBallDst.x < fireBall.target.x){
-        fireBall.fireBallDst.x += 5;
+        fireBall.fireBallDst.x += 10;
         fireBall.fireBallSrc.x += 40;
         if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 64.0f;
     }
     if (fireBall.fireBallDst.y > fireBall.target.y) {
-        fireBall.fireBallDst.y -= 5;
+        fireBall.fireBallDst.y -= 10;
         fireBall.fireBallSrc.x += 40;
         if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 64.0f;
     }
@@ -27,6 +27,7 @@ void directFireBall() {
         fireBall.hit = 1;
         SDL_DestroyTexture(fireBall.fireBallTex);
         SDL_Log("HIT!!!!\n");
+        // SDL_Delay(10);
         return; 
     }
 }
