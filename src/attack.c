@@ -26,6 +26,7 @@ void directFireBall() {
         fireBall.hit = 1;
         SDL_DestroyTexture(fireBall.fireBallTex);
         SDL_Log("HIT!!!!\n");
+        // SDL_Delay(10);
         return; 
     }
 }
