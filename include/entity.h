@@ -8,7 +8,7 @@ typedef struct
 {
   char name[MAX_NAME_LENGTH];
   void (*cleanup)(void);
-  void (*handle_events)(SDL_Event *);
+  void (*handle_events)(void *, SDL_Event *);
   void (*update)(float);
   void (*render)(SDL_Renderer *);
 } Entity;

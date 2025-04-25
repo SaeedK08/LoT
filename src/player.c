@@ -15,6 +15,8 @@ static const int NUM_IDLE_FRAMES = 6;
 static const int NUM_WALK_FRAMES = 6;
 static const float TIME_PER_FRAME = 0.1f;
 
+static bool fireBall = false; 
+
 static float anim_timer = 0.0f;
 static int current_frame = 0;
 static _Bool is_moving = 0;
@@ -31,6 +33,11 @@ static void cleanup()
 
 static void handle_events()
 {
+  AppState *pState = (AppState*) (appstate);
+  if (event->button.button == 1 && fabsf((event->button.x/4.26f) - (player_position.x - camera.x - PLAYER_WIDTH/2)) <= ATTACK_RANGE) {
+    fireBallInit(pState->renderer, (SDL_FPoint){event->button.x,event->button.y}, player_position);
+    fireBall = true;
+  }
 }
 
 // Updates LOCAL player state each frame
@@ -124,6 +131,9 @@ static void render(SDL_Renderer *renderer)
 
   // Render the current sprite frame
   SDL_RenderTextureRotated(renderer, player_texture, &sprite_portion, &player_dest_rect, 0, NULL, flip_mode);
+  if (fireBall) {
+    fireBall = renderFireBall(renderer);
+  }
 }
 
 void render_remote_players(SDL_Renderer *renderer)
