@@ -13,16 +13,15 @@ static FireBall fireBall;
 
 void directFireBall() {
     if (fireBall.fireBallDst.x < fireBall.target.x){
-        fireBall.fireBallDst.x += 5;
+        fireBall.fireBallDst.x += 10;
         fireBall.fireBallSrc.x += 40;
-        if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 64.0f;
+        if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 0;
     }
     if (fireBall.fireBallDst.y > fireBall.target.y) {
-        fireBall.fireBallDst.y -= 5;
+        fireBall.fireBallDst.y -= 10;
         fireBall.fireBallSrc.x += 40;
-        if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 64.0f;
+        if (fireBall.fireBallSrc.x >= 377) fireBall.fireBallSrc.x = 0;
     }
-    SDL_Log("(Direct fire ball) DEST x: %f, y: %f", fireBall.fireBallDst.x, fireBall.fireBallDst.y);
     if (fireBall.fireBallDst.x>=fireBall.target.x && fireBall.fireBallDst.y<=fireBall.target.y) {
         fireBall.hit = 1;
         SDL_DestroyTexture(fireBall.fireBallTex);
@@ -37,7 +36,7 @@ bool renderFireBall(SDL_Renderer *renderer) {
     SDL_FRect srcrect = {fireBall.fireBallSrc.x, fireBall.fireBallSrc.y, 34.0f, 39.0f};
     SDL_FRect dstrect = {fireBall.fireBallDst.x, fireBall.fireBallDst.y, 34.0f, 39.0f};
     SDL_RenderTextureRotated(renderer, fireBall.fireBallTex, &srcrect, &dstrect, 0, NULL, SDL_FLIP_NONE);
-    // SDL_Delay(100);
+    SDL_Delay(50);
     return true;
 }
 
