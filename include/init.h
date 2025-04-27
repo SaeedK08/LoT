@@ -11,3 +11,4 @@
 #include "../include/player.h"
 #include "../include/map.h"
 #include "../include/camera.h"
+#include "../include/base.h"

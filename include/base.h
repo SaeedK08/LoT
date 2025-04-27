@@ -1,0 +1,17 @@
+#pragma once
+
+#include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
+#include "../include/entity.h"
+#include "../include/camera.h"
+#include "../include/map.h"
+#include "../include/net_client.h"
+
+// // Player sprite dimensions
+#define PLAYER_WIDTH 35
+#define PLAYER_HEIGHT 67
+
+// Global variable storing the player's current world position
+// extern SDL_FPoint player_position;
+
+SDL_AppResult init_base(SDL_Renderer *renderer);
