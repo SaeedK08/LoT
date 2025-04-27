@@ -172,6 +172,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
+  if (init_tower(state->renderer) == SDL_APP_FAILURE)
+  {
+    cleanup_on_failure(state, true, is_server, true, true, true, false);
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
   SDL_SetRenderLogicalPresentation(state->renderer, 600, 300, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
   return SDL_APP_CONTINUE;

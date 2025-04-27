@@ -11,14 +11,12 @@ static SDL_Texture *base_textures[MAX_BASES] = {NULL};
 
 // Base Dimensions
 static const float BASE_WIDTH = 200.0f;
-static const float BASE_HEIGHT = 266.0f
+static const float BASE_HEIGHT = 250.0f;
 
 static void cleanup()
 {
-
   for (int i = 0; i < MAX_BASES; i++)
   {
-
     if (base_textures[i])
     {
       SDL_DestroyTexture(base_textures[i]);
@@ -37,7 +35,7 @@ static void render(SDL_Renderer *renderer)
     if (!base_textures[i])
       continue;
 
-  // Calculate screen position based on world position and camera
+    // Calculate screen position based on world position and camera
     float screen_x = base_positions[i].x - camera.x - BASE_WIDTH / 2.0f;
     float screen_y = base_positions[i].y - camera.y - BASE_HEIGHT / 2.0f;
 

@@ -12,3 +12,4 @@
 #include "../include/map.h"
 #include "../include/camera.h"
 #include "../include/base.h"
+#include "../include/tower.h"
