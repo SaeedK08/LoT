@@ -6,10 +6,13 @@
 #include "../include/camera.h"
 #include "../include/map.h"
 #include "../include/net_client.h"
+#include "../include/common.h"
+#include "../include/attack.h"
 
 // Player sprite dimensions
 #define PLAYER_WIDTH 35
 #define PLAYER_HEIGHT 67
+#define ATTACK_RANGE 100.0f
 
 // Global variable storing the player's current world position
 extern SDL_FPoint player_position;

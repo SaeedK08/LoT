@@ -15,7 +15,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
   {
     if (entities[i].handle_events) // Check if handler exists
     {
-      entities[i].handle_events(event);
+      entities[i].handle_events(appstate, event);
     }
   }
 
