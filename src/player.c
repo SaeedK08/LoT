@@ -34,8 +34,15 @@ static void cleanup()
 static void handle_events(void *appstate, SDL_Event *event)
 {
   AppState *pState = (AppState*) (appstate);
-  if (event->button.button == 1 && fabsf((event->button.x/4.0f) - (player_position.x - camera.x - PLAYER_WIDTH/2)) <= ATTACK_RANGE) {
-    fireBallInit(pState->renderer, (SDL_FPoint){event->button.x,event->button.y}, player_position);
+  int window_w, wnidow_h;
+  float scale_x, scale_y;
+  SDL_GetWindowSize(state->window, &window_w, &wnidow_h);
+  scale_x = window_w / 320.0f;                        // Scaling window size to camera view sizw
+  scale_y = wnidow_h / 180.0f;                        // Scaling window size to camera view sizw
+
+  if (event->button.button == 1 && 
+      fabsf((event->button.x / scale_x) - (player_position.x - camera.x - PLAYER_WIDTH/2)) <= ATTACK_RANGE) {
+    fireBallInit(pState->renderer, (SDL_FPoint){event->button.x,event->button.y}, player_position, (SDL_FPoint){scale_x, scale_y});
     fireBall = true;
   }
 }

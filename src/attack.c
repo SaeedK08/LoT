@@ -58,14 +58,17 @@ bool renderFireBall(SDL_Renderer *renderer) {
     return false;
 }
 
-void fireBallInit(SDL_Renderer *renderer, SDL_FPoint mousePos, SDL_FPoint player_position)  {
+void fireBallInit(SDL_Renderer *renderer, SDL_FPoint mousePos, SDL_FPoint player_position, SDL_FPoint scale_offset)  {
     if (fireBallCount >= MAX_FIREBALLS) return;
     FireBall *newFireBall = &fireBalls[fireBallCount++];
     newFireBall->src = (SDL_FPoint){0.0f, 0.0f};
     newFireBall->dst = (SDL_FPoint) {player_position.x - camera.x - PLAYER_WIDTH / 4.0f, 
                                      player_position.y - camera.y - PLAYER_HEIGHT / 2.0f};
 
-    newFireBall->target = (SDL_FRect){mousePos.x / 4.0f,mousePos.y / 4.0f, 100.0f, 100.0f};    // Scaling down mouse coordinates to camera view size by 4
+    newFireBall->target = (SDL_FRect){mousePos.x / scale_offset.x, 
+                                      mousePos.y / scale_offset.y, 
+                                      100.0f, 
+                                      100.0f};    // Scaling down mouse coordinates to camera view size by 4
     
     // When shooting to left, adjust the diff which caused by >180° rotation 
     if (newFireBall->dst.x > newFireBall->target.x) {

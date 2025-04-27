@@ -17,6 +17,6 @@
 
 typedef struct FireBall FireBall;
 bool renderFireBall(SDL_Renderer *renderer);
-void fireBallInit(SDL_Renderer *renderer, SDL_FPoint mousePos, SDL_FPoint player_position);
+void fireBallInit(SDL_Renderer *renderer, SDL_FPoint mousePos, SDL_FPoint player_position, SDL_FPoint scale_offset);
 
 #endif
