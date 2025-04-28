@@ -15,8 +15,6 @@ static const int NUM_IDLE_FRAMES = 6;
 static const int NUM_WALK_FRAMES = 6;
 static const float TIME_PER_FRAME = 0.1f;
 
-static bool fireBall = false;
-
 static float anim_timer = 0.0f;
 static int current_frame = 0;
 static _Bool is_moving = 0;
@@ -42,18 +40,33 @@ static void handle_events(void *appstate, SDL_Event *event)
   scale_x = window_w / CAMERA_VIEW_WIDTH;
   scale_y = window_h / CAMERA_VIEW_HEIGHT;
 
-  if (event->button.button == 1 &&
-      fabsf((event->button.x / scale_x) - (player_position.x - camera.x - PLAYER_WIDTH / 2)) <= ATTACK_RANGE)
+  // Check for left mouse button down event
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT)
   {
-    fireBallInit(pState->renderer, (SDL_FPoint){event->button.x, event->button.y}, player_position, (SDL_FPoint){scale_x, scale_y});
-    fireBall = true;
+    // Calculate mouse position relative to the camera view
+    float mouse_view_x = event->button.x / scale_x;
+    float mouse_view_y = event->button.y / scale_y;
+
+    // Calculate player's center position in camera view
+    float player_view_x = player_position.x - camera.x;
+    float player_view_y = player_position.y - camera.y;
+
+    // Calculate distance between player center and mouse click in view coordinates
+    float dist_x = mouse_view_x - player_view_x;
+    float dist_y = mouse_view_y - player_view_y;
+    float distance = sqrtf(dist_x * dist_x + dist_y * dist_y);
+
+    if (distance <= ATTACK_RANGE)
+    {
+      activate_fireballs(player_position.x, player_position.y, camera.x, camera.y, mouse_view_x, mouse_view_y);
+    }
   }
 }
 
 // Updates LOCAL player state each frame
 static void update(float delta_time)
 {
-  const bool *keyboard_state = SDL_GetKeyboardState(NULL);
+  const bool *keyboard_state = SDL_GetKeyboardState(NULL); // Use Uint8
   is_moving = 0;
 
   if (keyboard_state[SDL_SCANCODE_W])
@@ -141,7 +154,6 @@ static void render(SDL_Renderer *renderer)
 
   // Render the current sprite frame
   SDL_RenderTextureRotated(renderer, player_texture, &sprite_portion, &player_dest_rect, 0, NULL, flip_mode);
-  fireBall = renderFireBall(renderer);
 }
 
 void render_remote_players(SDL_Renderer *renderer)

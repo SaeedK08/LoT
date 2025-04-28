@@ -1,113 +1,189 @@
 #include "../include/attack.h"
 
-typedef struct FireBall
-{
-    SDL_Texture *texture;
-    SDL_FPoint src;
-    SDL_FPoint dst;
-    SDL_FRect target;
-    int hit;
-    float angle_deg;
-    float velocity_x, velocity_y;
-    int rotation_diff_x, rotation_diff_y;
-} FireBall;
+static SDL_Texture *fireball_texture;
 
-static FireBall fireBalls[MAX_FIREBALLS];
+FireBall fireBalls[MAX_FIREBALLS];
 static int fireBallCount = 0;
 
-bool renderFireBall(SDL_Renderer *renderer)
+static void cleanup()
 {
-    // if (fireBall.src.x >= 360) fireBall.src.x = 0;                     // Render next sprite
-    static Uint64 last_tick = 0, current_tick;
-    static float delta_time;
-    current_tick = SDL_GetTicks();
-    delta_time = (current_tick - last_tick) / 1000.0f;
-    last_tick = current_tick;
-    int i = 0;
-
-    while (i < fireBallCount)
+    if (fireball_texture)
     {
-        if (fireBalls[i].hit)
-        {
-            SDL_DestroyTexture(fireBalls[i].texture);
-            SDL_Log("HIT !!! \n");
-            fireBalls[i] = fireBalls[fireBallCount - 1]; // Move the last ball to the removed one
-            fireBallCount--;
-            continue; //  Skip incrementing i and hanle the last ball
-        }
-        fireBalls[i].dst.x += fireBalls[i].velocity_x * delta_time;
-        fireBalls[i].dst.y += fireBalls[i].velocity_y * delta_time;
-        SDL_Log("dst.x: %f, dst.y: %f \n", fireBalls[i].dst.x, fireBalls[i].dst.y);
-        if (fabsf(fireBalls[i].dst.x - fireBalls[i].target.x) < HIT_RANGE &&
-            fabsf(fireBalls[i].dst.y - fireBalls[i].target.y) < HIT_RANGE)
-        {
-            fireBalls[i].hit = 1;
-            continue; // Remove the ball
-        }
-        SDL_FRect srcrect = {fireBalls[i].src.x, fireBalls[i].src.y, FIREBALL_WIDTH, FIREBALL_HEIGHT};
-        SDL_FRect dstrect = {fireBalls[i].dst.x + fireBalls[i].rotation_diff_x,
-                             fireBalls[i].dst.y + fireBalls[i].rotation_diff_y,
-                             FIREBALL_WIDTH,
-                             FIREBALL_HEIGHT};
-        SDL_RenderTextureRotated(renderer,
-                                 fireBalls[i].texture,
-                                 &srcrect,
-                                 &dstrect,
-                                 fireBalls[i].angle_deg,
-                                 NULL,
-                                 SDL_FLIP_NONE);
-
-        i++;
+        SDL_DestroyTexture(fireball_texture);
+        fireball_texture = NULL;
+        SDL_Log("Fireball texture cleaned up.");
     }
-    return false;
 }
 
-void fireBallInit(SDL_Renderer *renderer, SDL_FPoint mousePos, SDL_FPoint player_position, SDL_FPoint scale_offset)
+static void update(float delta_time)
+{
+    for (int i = fireBallCount - 1; i >= 0; i--)
+    {
+        if (fireBalls[i].active)
+        {
+            if (fireBalls[i].hit)
+            {
+                SDL_Log("HIT !!! \n");
+                fireBalls[i].active = 0;
+
+                if (i < fireBallCount - 1)
+                {
+                    fireBalls[i] = fireBalls[fireBallCount - 1];
+                }
+
+                memset(&fireBalls[fireBallCount - 1], 0, sizeof(FireBall));
+
+                if (i < fireBallCount - 1)
+                {
+                    fireBalls[i].texture = fireball_texture;
+                }
+
+                fireBallCount--;
+                continue;
+            }
+
+            fireBalls[i].dst.x += fireBalls[i].velocity_x * delta_time;
+            fireBalls[i].dst.y += fireBalls[i].velocity_y * delta_time;
+
+            // SDL_Log("dst.x: %f, dst.y: %f \n", fireBalls[i].dst.x, fireBalls[i].dst.y);
+
+            // Boundary check
+            if (fireBalls[i].dst.x < -FIREBALL_WIDTH * 2 || fireBalls[i].dst.x > CAMERA_VIEW_WIDTH + FIREBALL_WIDTH ||
+                fireBalls[i].dst.y < -FIREBALL_HEIGHT * 2 || fireBalls[i].dst.y > CAMERA_VIEW_HEIGHT + FIREBALL_HEIGHT)
+            {
+                fireBalls[i].hit = 1;
+                continue;
+            }
+
+            // Check for collision with target point using distance
+            float dist_x = fireBalls[i].dst.x - fireBalls[i].target.x;
+            float dist_y = fireBalls[i].dst.y - fireBalls[i].target.y;
+            if (sqrtf(dist_x * dist_x + dist_y * dist_y) < HIT_RANGE)
+            {
+                fireBalls[i].hit = 1;
+                continue;
+            }
+        }
+    }
+}
+
+static void render(SDL_Renderer *renderer)
+{
+    for (int i = 0; i < fireBallCount; i++)
+    {
+        if (fireBalls[i].active)
+        {
+            SDL_FRect srcrect = {fireBalls[i].src.x, fireBalls[i].src.y, FIREBALL_FRAME_WIDTH, FIREBALL_FRAME_HEIGHT};
+
+            SDL_FRect dstrect = {fireBalls[i].dst.x + fireBalls[i].rotation_diff_x,
+                                 fireBalls[i].dst.y + fireBalls[i].rotation_diff_y,
+                                 FIREBALL_WIDTH,
+                                 FIREBALL_HEIGHT};
+
+            SDL_RenderTextureRotated(renderer,
+                                     fireBalls[i].texture,
+                                     &srcrect,
+                                     &dstrect,
+                                     fireBalls[i].angle_deg,
+                                     NULL,
+                                     SDL_FLIP_NONE);
+        }
+    }
+}
+
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y)
 {
     if (fireBallCount >= MAX_FIREBALLS)
+    {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Max fireballs reached, cannot fire.");
         return;
-    FireBall *newFireBall = &fireBalls[fireBallCount++];
+    }
+
+    int index = fireBallCount;
+    FireBall *newFireBall = &fireBalls[index];
+
+    newFireBall->active = 1;
+    newFireBall->hit = 0;
     newFireBall->src = (SDL_FPoint){0.0f, 0.0f};
-    newFireBall->dst = (SDL_FPoint){player_position.x - camera.x - PLAYER_WIDTH / 4.0f,
-                                    player_position.y - camera.y - PLAYER_HEIGHT / 2.0f};
 
-    newFireBall->target = (SDL_FRect){mousePos.x / scale_offset.x,
-                                      mousePos.y / scale_offset.y,
-                                      100.0f,
-                                      100.0f}; // Scaling down mouse coordinates to camera view size by 4
+    // Start position relative to camera view, adjusted for player offset
+    newFireBall->dst.x = player_pos_x - cam_x - PLAYER_WIDTH / 4.0f;
+    newFireBall->dst.y = player_pos_y - cam_y - PLAYER_HEIGHT / 2.0f;
 
-    // When shooting to left, adjust the diff which caused by >180° rotation
-    if (newFireBall->dst.x > newFireBall->target.x)
-    {
-        newFireBall->rotation_diff_x = -20;
-        newFireBall->rotation_diff_y = -25;
-    }
-    else
-    {
-        newFireBall->rotation_diff_x = 0;
-        newFireBall->rotation_diff_y = 0;
-    }
+    newFireBall->target = (SDL_FPoint){mouse_view_x, mouse_view_y};
 
-    float dx = (newFireBall->target.x) - (newFireBall->dst.x);
-    float dy = (newFireBall->target.y) - (newFireBall->dst.y);
+    // Calculate direction vector from fireball start (dst) to target
+    float dx = newFireBall->target.x - newFireBall->dst.x;
+    float dy = newFireBall->target.y - newFireBall->dst.y;
 
     // Normalize vector length to calculate velocity with right direction
     float length = sqrtf(dx * dx + dy * dy);
-    newFireBall->velocity_x = (dx / length) * FIREBALL_SPEED;
-    newFireBall->velocity_y = (dy / length) * FIREBALL_SPEED;
+    if (length > 0)
+    {
+        newFireBall->velocity_x = (dx / length) * FIREBALL_SPEED;
+        newFireBall->velocity_y = (dy / length) * FIREBALL_SPEED;
+    }
+    else
+    {
+        // Handle case where click is exactly on player center
+        newFireBall->velocity_x = 0;
+        newFireBall->velocity_y = -FIREBALL_SPEED;
+    }
 
     // Count shooting angle in degrees
     float angle_rad = atan2f(dy, dx);
     newFireBall->angle_deg = angle_rad * (180.0f / M_PI);
 
-    SDL_Log("TARGET x: %f, y: %f \n", newFireBall->target.x, newFireBall->target.y);
-    newFireBall->hit = 0;
-    char fireBallPath[] = "./resources/Sprites/Red_Team/Fire_Wizard/Charge.png";
-    newFireBall->texture = IMG_LoadTexture(renderer, fireBallPath);
-
-    if (!newFireBall->texture)
+    // Adjust rotation pivot offset based on angle
+    if (newFireBall->dst.x > newFireBall->target.x) // Facing left
     {
-        SDL_Log("Error loading texture for fire ball: %s\n", SDL_GetError());
-        return;
+        newFireBall->rotation_diff_x = -20;
+        newFireBall->rotation_diff_y = -25;
     }
+    else // Facing right
+    {
+        newFireBall->rotation_diff_x = 0;
+        newFireBall->rotation_diff_y = 0;
+    }
+
+    SDL_Log("TARGET x: %f, y: %f \n", newFireBall->target.x, newFireBall->target.y);
+
+    fireBallCount++;
+}
+
+// Load texture once and create entity
+SDL_AppResult init_fireball(SDL_Renderer *renderer)
+{
+    char path[] = "./resources/Sprites/Red_Team/Fire_Wizard/Charge.png";
+    fireball_texture = IMG_LoadTexture(renderer, path);
+
+    if (!fireball_texture)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to load fireball texture '%s': %s", __func__, path, SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    memset(fireBalls, 0, sizeof(fireBalls));
+    for (int i = 0; i < MAX_FIREBALLS; i++)
+    {
+        fireBalls[i].texture = fireball_texture;
+        fireBalls[i].active = 0;
+    }
+
+    Entity fireball_entity = {
+        .name = "fireball",
+        .update = update,
+        .render = render,
+        .cleanup = cleanup};
+
+    if (create_entity(fireball_entity) == SDL_APP_FAILURE)
+    {
+        // Cleanup texture if entity creation failed after loading
+        SDL_DestroyTexture(fireball_texture);
+        fireball_texture = NULL;
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_Log("Fireball entity initialized.");
+    return SDL_APP_SUCCESS;
 }
