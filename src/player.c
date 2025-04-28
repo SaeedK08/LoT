@@ -37,8 +37,10 @@ static void handle_events(void *appstate, SDL_Event *event)
   int window_w, window_h;
   float scale_x, scale_y;
   SDL_GetWindowSize(pState->window, &window_w, &window_h);
-  scale_x = window_w / 320.0f; // Scaling window size to camera view sizw
-  scale_y = window_h / 180.0f; // Scaling window size to camera view sizw
+
+  // Scaling window size to camera view size
+  scale_x = window_w / CAMERA_VIEW_WIDTH;
+  scale_y = window_h / CAMERA_VIEW_HEIGHT;
 
   if (event->button.button == 1 &&
       fabsf((event->button.x / scale_x) - (player_position.x - camera.x - PLAYER_WIDTH / 2)) <= ATTACK_RANGE)

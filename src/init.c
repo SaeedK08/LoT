@@ -179,7 +179,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
-  SDL_SetRenderLogicalPresentation(state->renderer, CAMER_VIEW_WIDTH, CAMER_VIEW_HEIGHT, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+  SDL_SetRenderLogicalPresentation(state->renderer, CAMERA_VIEW_WIDTH, CAMERA_VIEW_HEIGHT, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
   return SDL_APP_CONTINUE;
 }

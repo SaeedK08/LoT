@@ -3,8 +3,8 @@
 #include "../include/player.h"
 #include "../include/map.h"
 
-#define CAMER_VIEW_WIDTH 600
-#define CAMER_VIEW_HEIGHT 300
+#define CAMERA_VIEW_WIDTH 600.0f
+#define CAMERA_VIEW_HEIGHT 300.0f
 
 // Represents the game camera's view area
 typedef struct

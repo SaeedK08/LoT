@@ -1,7 +1,7 @@
 #include "../include/camera.h"
 
 // Define and initialize the global camera structure
-Camera camera = {0, 0, CAMER_VIEW_WIDTH, CAMER_VIEW_HEIGHT}; // Default view size
+Camera camera = {0, 0, CAMERA_VIEW_WIDTH, CAMERA_VIEW_HEIGHT}; // Default view size
 
 static void update(float delta_time)
 {
