@@ -1,6 +1,12 @@
 #ifndef ATTACK_H
 #define ATTACK_H
 
+#include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
+#include <stdio.h>
+#include <math.h>
+#include "../include/player.h"
+
 #define HIT_RANGE 3.0f
 #define MAX_FIREBALLS 100
 #define NUM_FIRE_BALL_FRAMES 11
@@ -8,12 +14,6 @@
 #define FIREBALL_WIDTH 33
 #define FIREBALL_HEIGHT 39
 #define FIREBALL_SPEED 100.0f
-#include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
-#include <stdio.h>
-#include <math.h>
-#include "../include/player.h"
-
 
 typedef struct FireBall FireBall;
 bool renderFireBall(SDL_Renderer *renderer);
