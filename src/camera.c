@@ -3,10 +3,11 @@
 // Define and initialize the global camera structure
 Camera camera = {0, 0, CAMERA_VIEW_WIDTH, CAMERA_VIEW_HEIGHT}; // Default view size
 
-static void update(float delta_time)
+static void update(AppState *state)
 {
-  (void)delta_time;
+  (void)state;
 
+  SDL_FPoint player_position = funcGetPlayerPos();
   // Center the camera on the player position
   camera.x = player_position.x - camera.w / 2.0f;
   camera.y = player_position.y - camera.h / 2.0f;

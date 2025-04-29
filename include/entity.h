@@ -1,20 +1,7 @@
 #pragma once
 #include <string.h>
 #include <SDL3/SDL.h>
-#define MAX_ENTITIES 100
-#define MAX_NAME_LENGTH 64
-
-typedef struct
-{
-  char name[MAX_NAME_LENGTH];
-  void (*cleanup)(void);
-  void (*handle_events)(void *, SDL_Event *);
-  void (*update)(float);
-  void (*render)(SDL_Renderer *);
-} Entity;
-
-extern Entity entities[MAX_ENTITIES];
-extern int entities_count;
+#include "../include/common.h"
 
 SDL_AppResult create_entity(Entity entity);
 SDL_AppResult delete_entity(int index);

@@ -2,7 +2,11 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
-#include "../include/entity.h"
+// #include "../include/entity.h"
+
+#define MAX_NAME_LENGTH 64
+#define MAX_ENTITIES 100
+extern int entities_count;
 
 typedef enum
 {
@@ -26,3 +30,14 @@ typedef struct AppState
   float current_tick;
   float delta_time;
 } AppState;
+
+typedef struct
+{
+  char name[MAX_NAME_LENGTH];
+  void (*cleanup)(void);
+  void (*handle_events)(void *, SDL_Event *);
+  void (*update)(AppState *);
+  void (*render)(AppState *);
+} Entity;
+
+extern Entity entities[MAX_ENTITIES];

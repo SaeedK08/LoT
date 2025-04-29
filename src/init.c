@@ -151,19 +151,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
-  if (init_player(state->renderer) == SDL_APP_FAILURE)
-  {
-    cleanup_on_failure(state, true, is_server, true, true, false, false);
-    *appstate = NULL;
-    return SDL_APP_FAILURE;
-  }
+  // if (!init_player(state->renderer))
+  // {
+  //   cleanup_on_failure(state, true, is_server, true, true, false, false);
+  //   *appstate = NULL;
+  //   return SDL_APP_FAILURE;
+  // }
 
-  if (init_camera(state->renderer) == SDL_APP_FAILURE)
-  {
-    cleanup_on_failure(state, true, is_server, true, true, true, false);
-    *appstate = NULL;
-    return SDL_APP_FAILURE;
-  }
+  // if (init_camera(state->renderer) == SDL_APP_FAILURE)
+  // {
+  //   cleanup_on_failure(state, true, is_server, true, true, true, false);
+  //   *appstate = NULL;
+  //   return SDL_APP_FAILURE;
+  // }
 
   if (init_base(state->renderer) == SDL_APP_FAILURE)
   {

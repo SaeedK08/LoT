@@ -26,7 +26,7 @@ static void cleanup()
   }
 }
 
-static void render(SDL_Renderer *renderer)
+static void render(AppState *state)
 {
   // Check that the texture has loaded
   for (int i = 0; i < MAX_BASES; i++)
@@ -46,7 +46,7 @@ static void render(SDL_Renderer *renderer)
         BASE_HEIGHT};
 
     // Render castle
-    SDL_RenderTexture(renderer, base_textures[i], NULL, &base_dest_rect);
+    SDL_RenderTexture(state->renderer, base_textures[i], NULL, &base_dest_rect);
   }
 }
 

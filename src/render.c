@@ -11,11 +11,9 @@ void app_render(void *appstate)
   {
     if (entities[i].render)
     {
-      entities[i].render(state->renderer);
+      entities[i].render(state);
     }
   }
-
-  render_remote_players(state->renderer);
 
   SDL_RenderPresent(state->renderer);
 }

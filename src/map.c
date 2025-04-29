@@ -34,7 +34,7 @@ static void cleanup()
   SDL_Log("Map has been cleaned up.");
 }
 
-static void render(SDL_Renderer *renderer)
+static void render(AppState *state)
 {
   if (!map || !texture)
     return; // Don't render if map or textures aren't loaded
@@ -100,7 +100,7 @@ static void render(SDL_Renderer *renderer)
             (float)map->tileheight};
 
         // Render the tile
-        SDL_RenderTexture(renderer, texture_to_use->texture, &src, &dst);
+        SDL_RenderTexture(state->renderer, texture_to_use->texture, &src, &dst);
       }
     }
     temp_layer = temp_layer->next; // Move to next layer

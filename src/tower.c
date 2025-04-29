@@ -28,7 +28,7 @@ static void cleanup()
     }
 }
 
-static void render(SDL_Renderer *renderer)
+static void render(AppState *state)
 {
     // Check that the texture has loaded
     for (int i = 0; i < MAX_TOWERS; i++)
@@ -48,7 +48,7 @@ static void render(SDL_Renderer *renderer)
             TOWER_HEIGHT};
 
         // Render towers
-        SDL_RenderTexture(renderer, tower_textures[i], NULL, &tower_dest_rect);
+        SDL_RenderTexture(state->renderer, tower_textures[i], NULL, &tower_dest_rect);
     }
 }
 

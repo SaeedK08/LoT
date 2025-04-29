@@ -8,9 +8,9 @@ RemotePlayer remotePlayers[MAX_CLIENTS]; // Holds data for other players
 
 // Forward Declarations for Static Helper Functions
 static SDL_AppResult handle_connection_attempt(void);
-static void process_server_message(char *buffer, int bytesReceived);
-static SDL_AppResult receive_server_data(void);
-static SDL_AppResult send_client_data(void);
+static void process_server_message(char *buffer, int bytesReceived, AppState *state);
+static SDL_AppResult receive_server_data(AppState *state);
+// static SDL_AppResult send_client_data(void);
 
 static void cleanup()
 {
@@ -29,9 +29,9 @@ static void cleanup()
     memset(remotePlayers, 0, sizeof(remotePlayers)); // Clear remote player data
 }
 
-static void update(float delta_time)
+static void update(AppState *state)
 {
-    (void)delta_time;
+    (void)state;
 
     // Only attempt connection process if not yet connected
     if (!isConnected)
@@ -55,7 +55,7 @@ static void update(float delta_time)
     if (isConnected && serverConnection != NULL)
     {
         // Receive data from server. Handles disconnect on error internally.
-        if (receive_server_data() == SDL_APP_FAILURE)
+        if (receive_server_data(state) == SDL_APP_FAILURE)
         {
             // Error logged in receive_server_data, cleanup already called.
             // isConnected will be false now.
@@ -66,12 +66,12 @@ static void update(float delta_time)
         if (isConnected && serverConnection != NULL)
         {
             // Send data to server. Handles disconnect on error internally.
-            if (send_client_data() == SDL_APP_FAILURE)
-            {
-                // Error logged in send_client_data, cleanup already called.
-                // isConnected will be false now.
-                return; // Stop processing for this frame
-            }
+            // if (send_client_data() == SDL_APP_FAILURE)
+            // {
+            //     // Error logged in send_client_data, cleanup already called.
+            //     // isConnected will be false now.
+            //     return; // Stop processing for this frame
+            // }
         }
     }
 }
@@ -89,8 +89,11 @@ SDL_AppResult init_client()
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_ResolveHostname failed immediately: %s", __func__, SDL_GetError());
         return SDL_APP_FAILURE;
     }
-
     SDL_Log("Attempting to resolve hostname: %s", HOSTNAME);
+
+    SDLNet_WaitUntilResolved(serverAddress, -1);
+
+    SDL_Log("Has resolved: %s", HOSTNAME);
 
     Entity client_e = {
         .name = "net_client",
@@ -118,6 +121,8 @@ static SDL_AppResult handle_connection_attempt(void)
         {
             SDL_Log("Hostname resolved. Attempting to connect...");
             serverConnection = SDLNet_CreateClient(serverAddress, SERVER_PORT);
+            SDLNet_WaitUntilConnected(serverConnection, -1);
+
             if (serverConnection == NULL) // Immediate connection failure
             {
                 SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_CreateClient failed: %s", __func__, SDL_GetError());
@@ -165,7 +170,7 @@ static SDL_AppResult handle_connection_attempt(void)
 }
 
 // Processes a single message received from the server
-static void process_server_message(char *buffer, int bytesReceived)
+static void process_server_message(char *buffer, int bytesReceived, AppState *state)
 {
     if (buffer == NULL || bytesReceived <= 0)
         return;
@@ -180,34 +185,61 @@ static void process_server_message(char *buffer, int bytesReceived)
     uint8_t msg_type_byte = buffer[0];
     switch (msg_type_byte)
     {
+    // In net_client.c -> process_server_message
     case MSG_TYPE_S_WELCOME:
-        SDL_Log("Received S_WELCOME from server");
-        break;
+        // Problem: buffer[4] reads only ONE byte, not the full integer!
+        // init_player(state->renderer, buffer[4]);
 
-    case MSG_TYPE_PLAYER_POS:
-        // Check if received data is enough for type + update struct
-        if (bytesReceived >= (int)(1 + sizeof(PlayerPosUpdateData)))
+        // Check if we received enough data for the full message (type + index)
+        if (bytesReceived >= (int)(sizeof(uint8_t) + sizeof(int)))
         {
-            PlayerPosUpdateData update_data;
-            memcpy(&update_data, buffer + 1, sizeof(PlayerPosUpdateData));
-            uint8_t remote_client_id = update_data.client_id;
-
-            // Validate client ID before accessing array
-            if (remote_client_id < MAX_CLIENTS)
+            int receivedIndex;
+            // Correctly copy the integer starting from the 2nd byte (index 1 is type)
+            // BUT: Server sends two ints! Index is the second int.
+            // int msgArray[2]; msgArray[0] = type; msgArray[1] = index;
+            // So index starts at byte offset sizeof(int).
+            if (bytesReceived >= (int)(sizeof(int) * 2)) // Need space for TWO ints
             {
-                remotePlayers[remote_client_id].position = update_data.position;
-                remotePlayers[remote_client_id].active = true; // Mark as active
+                memcpy(&receivedIndex, buffer + sizeof(int), sizeof(int)); // Copy the second int
+                SDL_Log("Received S_WELCOME, assigning myIndex = %d", receivedIndex);
+                init_player(state->renderer, receivedIndex);
+                init_camera(state->renderer); // Assuming camera depends on player
             }
             else
             {
-                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd POS update with invalid client ID: %u", __func__, (unsigned int)remote_client_id);
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete S_WELCOME message (%d bytes, needed %zu)", __func__, bytesReceived, sizeof(int) * 2);
             }
         }
         else
         {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete PLAYER_POS message from server (%d bytes)", __func__, bytesReceived);
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete S_WELCOME message type (%d bytes, needed %zu)", __func__, bytesReceived, sizeof(int) * 2);
         }
         break;
+
+        // case MSG_TYPE_PLAYER_POS:
+        //     // Check if received data is enough for type + update struct
+        //     if (bytesReceived >= (int)(1 + sizeof(PlayerPosUpdateData)))
+        //     {
+        //         PlayerPosUpdateData update_data;
+        //         memcpy(&update_data, buffer + 1, sizeof(PlayerPosUpdateData));
+        //         uint8_t remote_client_id = update_data.client_id;
+
+        //         // Validate client ID before accessing array
+        //         if (remote_client_id < MAX_CLIENTS)
+        //         {
+        //             remotePlayers[remote_client_id].position = update_data.position;
+        //             remotePlayers[remote_client_id].active = true; // Mark as active
+        //         }
+        //         else
+        //         {
+        //             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd POS update with invalid client ID: %u", __func__, (unsigned int)remote_client_id);
+        //         }
+        //     }
+        //     else
+        //     {
+        //         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete PLAYER_POS message from server (%d bytes)", __func__, bytesReceived);
+        //     }
+        //     break;
 
     default:
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd unknown message type (%u) from server", __func__, (unsigned int)msg_type_byte);
@@ -216,7 +248,7 @@ static void process_server_message(char *buffer, int bytesReceived)
 }
 
 // Handles receiving all available data from the server in a non-blocking way
-static SDL_AppResult receive_server_data(void)
+static SDL_AppResult receive_server_data(AppState *state)
 {
     if (!isConnected || serverConnection == NULL)
         return SDL_APP_FAILURE;
@@ -228,7 +260,7 @@ static SDL_AppResult receive_server_data(void)
 
         if (bytesReceived > 0)
         {
-            process_server_message(buffer, bytesReceived);
+            process_server_message(buffer, bytesReceived, state);
             // If we read less than the buffer size, assume no more data for now
             if (bytesReceived < (int)sizeof(buffer))
             {
@@ -258,25 +290,25 @@ static SDL_AppResult receive_server_data(void)
     return SDL_APP_SUCCESS; // Success for this frame
 }
 
-// Handles sending client data
-static SDL_AppResult send_client_data(void)
-{
-    if (!isConnected || serverConnection == NULL)
-        return SDL_APP_FAILURE;
+// // Handles sending client data
+// static SDL_AppResult send_client_data(void)
+// {
+//     if (!isConnected || serverConnection == NULL)
+//         return SDL_APP_FAILURE;
 
-    // Prepare buffer: 1 byte for type + size of position data
-    uint8_t send_buffer[1 + sizeof(SDL_FPoint)];
-    send_buffer[0] = MSG_TYPE_PLAYER_POS;
-    extern SDL_FPoint player_position; // Access the global player position
-    memcpy(send_buffer + 1, &player_position, sizeof(SDL_FPoint));
+//     // Prepare buffer: 1 byte for type + size of position data
+//     uint8_t send_buffer[1 + sizeof(SDL_FPoint)];
+//     send_buffer[0] = MSG_TYPE_PLAYER_POS;
+//     extern SDL_FPoint player_position; // Access the global player position
+//     memcpy(send_buffer + 1, &player_position, sizeof(SDL_FPoint));
 
-    // Send position update
-    if (!SDLNet_WriteToStreamSocket(serverConnection, send_buffer, sizeof(send_buffer)))
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_WriteToStreamSocket (position) failed: %s. Disconnecting.", __func__, SDL_GetError());
-        cleanup();              // Disconnect on failure
-        return SDL_APP_FAILURE; // Signal failure
-    }
+//     // Send position update
+//     if (!SDLNet_WriteToStreamSocket(serverConnection, send_buffer, sizeof(send_buffer)))
+//     {
+//         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_WriteToStreamSocket (position) failed: %s. Disconnecting.", __func__, SDL_GetError());
+//         cleanup();              // Disconnect on failure
+//         return SDL_APP_FAILURE; // Signal failure
+//     }
 
-    return SDL_APP_SUCCESS;
-}
+//     return SDL_APP_SUCCESS;
+// }

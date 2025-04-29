@@ -15,7 +15,7 @@ static void cleanup()
     }
 }
 
-static void update(float delta_time)
+static void update(AppState *state)
 {
     for (int i = fireBallCount - 1; i >= 0; i--)
     {
@@ -42,8 +42,8 @@ static void update(float delta_time)
                 continue;
             }
 
-            fireBalls[i].dst.x += fireBalls[i].velocity_x * delta_time;
-            fireBalls[i].dst.y += fireBalls[i].velocity_y * delta_time;
+            fireBalls[i].dst.x += fireBalls[i].velocity_x * state->delta_time;
+            fireBalls[i].dst.y += fireBalls[i].velocity_y * state->delta_time;
 
             // SDL_Log("dst.x: %f, dst.y: %f \n", fireBalls[i].dst.x, fireBalls[i].dst.y);
 
@@ -67,7 +67,7 @@ static void update(float delta_time)
     }
 }
 
-static void render(SDL_Renderer *renderer)
+static void render(AppState *state)
 {
     for (int i = 0; i < fireBallCount; i++)
     {
@@ -80,7 +80,7 @@ static void render(SDL_Renderer *renderer)
                                  FIREBALL_WIDTH,
                                  FIREBALL_HEIGHT};
 
-            SDL_RenderTextureRotated(renderer,
+            SDL_RenderTextureRotated(state->renderer,
                                      fireBalls[i].texture,
                                      &srcrect,
                                      &dstrect,

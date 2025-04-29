@@ -11,6 +11,6 @@ void app_update(void *appstate)
   {
     if (!entities[i].update)
       continue;
-    entities[i].update(state->delta_time);
+    entities[i].update(state);
   }
 }

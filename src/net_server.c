@@ -11,6 +11,8 @@ typedef struct
 static SDLNet_Server *serverSocket = NULL;
 static ClientInfo clients[MAX_CLIENTS];
 
+int amountPlayers = -1;
+
 // Forward Declarations
 static void disconnectClient(int clientIndex);
 static SDL_AppResult acceptConnections(void);
@@ -85,8 +87,9 @@ static SDL_AppResult acceptConnections(void)
         {
             clients[clientSlot].socket = newClientSocket;
             clients[clientSlot].active = true;
-            clients[clientSlot].position = (SDL_FPoint){0.0f, 0.0f};
             newClientSocket = NULL; // Reset for next potential accept
+            SDL_Log("server amountplayers %d", clientSlot);
+            amountPlayers++;
         }
         else
         {
@@ -110,27 +113,27 @@ static SDL_AppResult acceptConnections(void)
 // Broadcasts position data to all clients except the sender
 static void broadcast_position(int senderIndex, const PlayerPosUpdateData *update_data)
 {
-    // Prepare Buffer
-    uint8_t broadcast_buffer[1 + sizeof(PlayerPosUpdateData)];
-    broadcast_buffer[0] = MSG_TYPE_PLAYER_POS;
-    memcpy(broadcast_buffer + 1, update_data, sizeof(PlayerPosUpdateData));
+    // // Prepare Buffer
+    // uint8_t broadcast_buffer[1 + sizeof(PlayerPosUpdateData)];
+    // broadcast_buffer[0] = MSG_TYPE_PLAYER_POS;
+    // memcpy(broadcast_buffer + 1, update_data, sizeof(PlayerPosUpdateData));
 
-    // Send to Clients
-    for (int j = 0; j < MAX_CLIENTS; ++j)
-    {
-        // Skip sender and inactive/invalid clients
-        if (j == senderIndex || !clients[j].active || clients[j].socket == NULL)
-        {
-            continue;
-        }
+    // // Send to Clients
+    // for (int j = 0; j < MAX_CLIENTS; ++j)
+    // {
+    //     // Skip sender and inactive/invalid clients
+    //     if (j == senderIndex || !clients[j].active || clients[j].socket == NULL)
+    //     {
+    //         continue;
+    //     }
 
-        // Write Data
-        if (!SDLNet_WriteToStreamSocket(clients[j].socket, broadcast_buffer, sizeof(broadcast_buffer)))
-        {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Broadcast POS failed (Sender %d, Recipient %d): %s.", __func__, senderIndex, j, SDL_GetError());
-            disconnectClient(j);
-        }
-    }
+    //     // Write Data
+    //     if (!SDLNet_WriteToStreamSocket(clients[j].socket, broadcast_buffer, sizeof(broadcast_buffer)))
+    //     {
+    //         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Broadcast POS failed (Sender %d, Recipient %d): %s.", __func__, senderIndex, j, SDL_GetError());
+    //         disconnectClient(j);
+    //     }
+    // }
 }
 
 // Processes a received message from a specific client
@@ -149,32 +152,35 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
     switch (msg_type_byte)
     {
     case MSG_TYPE_C_HELLO:
-        uint8_t reply_type = MSG_TYPE_S_WELCOME;
-        if (!SDLNet_WriteToStreamSocket(clients[clientIndex].socket, &reply_type, sizeof(reply_type)))
+        int msgArray[2];
+        msgArray[0] = MSG_TYPE_S_WELCOME;
+        msgArray[1] = clientIndex;                                                         // Ensure this uses clientIndex
+        SDL_Log("Sending S_WELCOME to client %d with index %d", clientIndex, msgArray[1]); // Added log for clarity
+        if (!SDLNet_WriteToStreamSocket(clients[clientIndex].socket, msgArray, sizeof(msgArray)))
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Write S_WELCOME failed (Client %d): %s.", __func__, clientIndex, SDL_GetError());
             disconnectClient(clientIndex);
         }
         break;
 
-    case MSG_TYPE_PLAYER_POS:
-        if (bytesReceived >= (int)(1 + sizeof(SDL_FPoint)))
-        {
-            SDL_FPoint received_pos;
-            memcpy(&received_pos, buffer + 1, sizeof(SDL_FPoint));
-            clients[clientIndex].position = received_pos; // Store position
+        // case MSG_TYPE_PLAYER_POS:
+        //     if (bytesReceived >= (int)(1 + sizeof(SDL_FPoint)))
+        //     {
+        //         SDL_FPoint received_pos;
+        //         memcpy(&received_pos, buffer + 1, sizeof(SDL_FPoint));
+        //         clients[clientIndex].position = received_pos; // Store position
 
-            PlayerPosUpdateData update_data;
-            update_data.client_id = (uint8_t)clientIndex;
-            update_data.position = clients[clientIndex].position;
+        //         PlayerPosUpdateData update_data;
+        //         update_data.client_id = (uint8_t)clientIndex;
+        //         update_data.position = clients[clientIndex].position;
 
-            broadcast_position(clientIndex, &update_data); // Relay position
-        }
-        else
-        {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received incomplete PLAYER_POS message from client %d (%d bytes)", __func__, clientIndex, bytesReceived);
-        }
-        break;
+        //         broadcast_position(clientIndex, &update_data); // Relay position
+        //     }
+        //     else
+        //     {
+        //         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received incomplete PLAYER_POS message from client %d (%d bytes)", __func__, clientIndex, bytesReceived);
+        //     }
+        //     break;
 
     default:
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Received unknown message type (%u) from client %d", __func__, (unsigned int)msg_type_byte, clientIndex);
@@ -224,9 +230,9 @@ static void handle_single_client(int clientIndex)
     }
 }
 
-static void update(float delta_time)
+static void update(AppState *state)
 {
-    (void)delta_time;
+    (void)state;
 
     acceptConnections();
 
@@ -265,4 +271,10 @@ SDL_AppResult init_server()
     }
 
     return SDL_APP_SUCCESS;
+}
+
+int funcGetAmountPlayers()
+{
+    SDL_Log("in the func amountplayers %d", amountPlayers);
+    return amountPlayers;
 }
