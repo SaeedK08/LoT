@@ -1,31 +1,33 @@
 #pragma once
 
-#include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
-#include "../include/entity.h"
-#include "../include/camera.h"
-#include "../include/map.h"
-#include "../include/net_client.h"
+#include <stdbool.h>
+
 #include "../include/common.h"
-#include "../include/attack.h"
+#include "../include/camera.h"
+#include "../include/net_client.h"
+#include "../include/camera.h"
+#include "../include/net_client.h"
 
-// Player sprite dimensions
-#define PLAYER_WIDTH 35
-#define PLAYER_HEIGHT 67
-#define ATTACK_RANGE 100.0f
-#define FRAME_WIDTH 48.0f
-#define FRAME_HEIGHT 80.0f
-#define IDLE_ROW_Y 0.0f
-#define WALK_ROW_Y 80.0f
-#define NUM_IDLE_FRAMES 6
-#define NUM_WALK_FRAMES 6
-#define TIME_PER_FRAME 0.1f
+struct Player;
 
-typedef struct Player Player;
+/**
+ * @brief Initializes the player resources and entity for a specific client index.
+ * Creates the player entity if it doesn't exist. Assumes it's the local player.
+ * @param renderer The main SDL renderer.
+ * @param assigned_player_index The client index assigned to this player.
+ * @return Pointer to the internally managed Player struct, or NULL on failure.
+ */
+struct Player *init_player(SDL_Renderer *renderer, int assigned_player_index);
 
-// Global variable storing the player's current world position
-SDL_FPoint funcGetPlayerPos();
+/**
+ * @brief Gets the current world coordinates of the local player.
+ * @return SDL_FPoint containing the player's world x, y position. Returns {-1.0f, -1.0f} if the local player is not initialized.
+ */
+SDL_FPoint funcGetPlayerPos(void);
 
-Player *init_player(SDL_Renderer *renderer, int myIndex);
-
-// void render_remote_players(SDL_Renderer *renderer);
+/**
+ * @brief Populates a given struct with the local player's current state suitable for network transmission.
+ * @param out_data Pointer to a PlayerStateData struct to be filled with the local player's current network-relevant state.
+ * @return true if the local player is initialized and out_data was successfully populated, false otherwise (e.g., player not initialized, out_data is NULL).
+ */
+bool get_local_player_state_for_network(PlayerStateData *out_data);

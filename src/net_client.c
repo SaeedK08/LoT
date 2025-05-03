@@ -1,18 +1,33 @@
 #include "../include/net_client.h"
 
-// Static Variables
+/**
+ * @brief Represents the different network connection states of the client.
+ */
+typedef enum
+{
+    CLIENT_STATE_DISCONNECTED,
+    CLIENT_STATE_RESOLVING,
+    CLIENT_STATE_CONNECTING,
+    CLIENT_STATE_CONNECTED
+} ClientNetworkState;
+
+// --- Module Variables ---
 static SDLNet_Address *serverAddress = NULL;
 static SDLNet_StreamSocket *serverConnection = NULL;
-static bool isConnected = false;
-RemotePlayer remotePlayers[MAX_CLIENTS]; // Holds data for other players
+static ClientNetworkState networkState = CLIENT_STATE_DISCONNECTED;
+static int myClientIndex = -1;
+static Uint64 last_state_send_time = 0;
+const Uint32 STATE_UPDATE_INTERVAL_MS = 50; // Send state ~20 times/sec
 
-// Forward Declarations for Static Helper Functions
-static SDL_AppResult handle_connection_attempt(void);
-static void process_server_message(char *buffer, int bytesReceived, AppState *state);
-static SDL_AppResult receive_server_data(AppState *state);
-// static SDL_AppResult send_client_data(void);
+RemotePlayer remotePlayers[MAX_CLIENTS];
 
-static void cleanup()
+// --- Static Helper Functions ---
+
+/**
+ * @brief Cleans up all network resources (socket, address) and resets state.
+ * @return void
+ */
+static void cleanup(void)
 {
     if (serverConnection != NULL)
     {
@@ -24,291 +39,398 @@ static void cleanup()
         SDLNet_UnrefAddress(serverAddress);
         serverAddress = NULL;
     }
-    SDL_Log("Client network resources cleaned up.");
-    isConnected = false;
-    memset(remotePlayers, 0, sizeof(remotePlayers)); // Clear remote player data
-}
-
-static void update(AppState *state)
-{
-    (void)state;
-
-    // Only attempt connection process if not yet connected
-    if (!isConnected)
-    {
-        // handle_connection_attempt logs errors internally and calls cleanup on failure
-        if (handle_connection_attempt() == SDL_APP_FAILURE)
-        {
-            // No need to return failure from update
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Connection attempt failed, client inactive.", __func__);
-            return; // Stop processing for this frame if connection failed
-        }
-        // If handle_connection_attempt succeeded and we are now connected, proceed
-        if (!isConnected)
-        {
-            // Still connecting asynchronously, wait for next frame
-            return;
-        }
-    }
-
-    // If connected
-    if (isConnected && serverConnection != NULL)
-    {
-        // Receive data from server. Handles disconnect on error internally.
-        if (receive_server_data(state) == SDL_APP_FAILURE)
-        {
-            // Error logged in receive_server_data, cleanup already called.
-            // isConnected will be false now.
-            return; // Stop processing for this frame
-        }
-
-        // Check connection again in case receive_server_data disconnected us
-        if (isConnected && serverConnection != NULL)
-        {
-            // Send data to server. Handles disconnect on error internally.
-            // if (send_client_data() == SDL_APP_FAILURE)
-            // {
-            //     // Error logged in send_client_data, cleanup already called.
-            //     // isConnected will be false now.
-            //     return; // Stop processing for this frame
-            // }
-        }
-    }
-}
-
-SDL_AppResult init_client()
-{
-    isConnected = false;
+    networkState = CLIENT_STATE_DISCONNECTED;
+    myClientIndex = -1;
     memset(remotePlayers, 0, sizeof(remotePlayers));
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Network resources cleaned up.");
+}
 
-    // Resolve hostname asynchronously
+/**
+ * @brief Sends a data buffer to the server via the established connection.
+ * Cleans up and disconnects if the send fails.
+ * @param buffer Pointer to the data buffer to send.
+ * @param length The number of bytes to send from the buffer.
+ * @return true if the send was successful, false otherwise (and triggers cleanup).
+ */
+static bool send_buffer(const void *buffer, int length)
+{
+    if (networkState != CLIENT_STATE_CONNECTED || serverConnection == NULL)
+        return false;
+    if (!SDLNet_WriteToStreamSocket(serverConnection, buffer, length))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Send failed: %s. Disconnecting.", SDL_GetError());
+        cleanup(); // Disconnect on send failure
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Attempts to read data from the server stream socket.
+ * @param buffer The buffer to store received data.
+ * @param bufferSize The maximum number of bytes to read into the buffer.
+ * @return The number of bytes received (0 if non-blocking and no data), -1 on error or disconnect.
+ */
+static int read_from_server(char *buffer, int bufferSize)
+{
+    if (networkState != CLIENT_STATE_CONNECTED || serverConnection == NULL)
+        return -1;
+    SDL_ClearError();
+    // Note: Assuming non-blocking based on typical game loop usage
+    return SDLNet_ReadFromStreamSocket(serverConnection, buffer, bufferSize);
+}
+
+/**
+ * @brief Initiates asynchronous hostname resolution if currently disconnected.
+ * @return void
+ */
+static void attempt_resolve(void)
+{
+    if (networkState != CLIENT_STATE_DISCONNECTED)
+        return;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Attempting to resolve hostname: %s", HOSTNAME);
     serverAddress = SDLNet_ResolveHostname(HOSTNAME);
     if (serverAddress == NULL)
     {
         // Immediate failure
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_ResolveHostname failed immediately: %s", __func__, SDL_GetError());
-        return SDL_APP_FAILURE;
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] SDLNet_ResolveHostname failed immediately: %s", SDL_GetError());
     }
-    SDL_Log("Attempting to resolve hostname: %s", HOSTNAME);
-
-    SDLNet_WaitUntilResolved(serverAddress, -1);
-
-    SDL_Log("Has resolved: %s", HOSTNAME);
-
-    Entity client_e = {
-        .name = "net_client",
-        .update = update,
-        .cleanup = cleanup};
-
-    // Check result of create_entity
-    if (create_entity(client_e) == SDL_APP_FAILURE)
+    else
     {
-        SDLNet_UnrefAddress(serverAddress); // Clean up address if entity creation failed
-        serverAddress = NULL;
-        return SDL_APP_FAILURE;
+        networkState = CLIENT_STATE_RESOLVING;
     }
-    return SDL_APP_SUCCESS;
 }
 
-// Handles the logic for resolving the address and checking connection status
-static SDL_AppResult handle_connection_attempt(void)
+/**
+ * @brief Attempts to create a client socket connection to the resolved server address.
+ * Only proceeds if hostname resolution succeeded and state is ready for connection.
+ * @return void
+ */
+static void attempt_connection(void)
 {
-    // Check address resolution status first
-    if (serverAddress != NULL && serverConnection == NULL)
+    if (serverAddress == NULL || networkState != CLIENT_STATE_DISCONNECTED)
+        return;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Attempting connection to port %d...", SERVER_PORT);
+    serverConnection = SDLNet_CreateClient(serverAddress, SERVER_PORT);
+    if (serverConnection == NULL)
     {
-        int address_status = SDLNet_GetAddressStatus(serverAddress);
-        if (address_status == 1) // Address resolved, attempt connection
-        {
-            SDL_Log("Hostname resolved. Attempting to connect...");
-            serverConnection = SDLNet_CreateClient(serverAddress, SERVER_PORT);
-            SDLNet_WaitUntilConnected(serverConnection, -1);
-
-            if (serverConnection == NULL) // Immediate connection failure
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_CreateClient failed: %s", __func__, SDL_GetError());
-                cleanup();
-                return SDL_APP_FAILURE;
-            }
-            // else: Connection attempt initiated, status will be checked below
-        }
-        else if (address_status == -1) // Resolution failed asynchronously
-        {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_ResolveHostname failed asynchronously: %s", __func__, SDL_GetError());
-            cleanup();
-            return SDL_APP_FAILURE;
-        }
-        // else (address_status == 0): Still resolving, wait.
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] SDLNet_CreateClient failed: %s", SDL_GetError());
+        cleanup(); // Cleanup if connection fails immediately
     }
-
-    // Check connection status if we have initiated a connection attempt
-    if (serverConnection != NULL && !isConnected)
+    else
     {
-        int connection_status = SDLNet_GetConnectionStatus(serverConnection);
-        if (connection_status == 1) // Connected successfully
-        {
-            isConnected = true;
-            SDL_Log("Connected to server!");
-
-            // Send initial hello message
-            uint8_t msg_type = MSG_TYPE_C_HELLO;
-            if (!SDLNet_WriteToStreamSocket(serverConnection, &msg_type, sizeof(msg_type)))
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Initial C_HELLO send failed: %s. Disconnecting.", __func__, SDL_GetError());
-                cleanup();
-                return SDL_APP_FAILURE;
-            }
-        }
-        else if (connection_status == -1) // Connection failed asynchronously
-        {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_GetConnectionStatus failed: %s", __func__, SDL_GetError());
-            cleanup();
-            return SDL_APP_FAILURE;
-        }
-        // else (connection_status == 0): Still connecting, wait.
+        networkState = CLIENT_STATE_CONNECTING;
     }
-    return SDL_APP_SUCCESS;
 }
 
-// Processes a single message received from the server
+/**
+ * @brief Checks the status of an ongoing asynchronous hostname resolution.
+ * If resolved, proceeds to attempt connection. If failed, cleans up.
+ * @return void
+ */
+static void check_resolve_status(void)
+{
+    if (serverAddress == NULL || networkState != CLIENT_STATE_RESOLVING)
+        return;
+    int status = SDLNet_GetAddressStatus(serverAddress);
+    if (status == 1) // Resolved successfully
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Hostname resolved.");
+        networkState = CLIENT_STATE_DISCONNECTED; // State reset before attempting connection
+        attempt_connection();                     // Proceed to connect
+    }
+    else if (status == -1) // Resolution failed
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] SDLNet_ResolveHostname failed async: %s", SDL_GetError());
+        cleanup(); // Cleanup on failure
+    }
+    // status == 0 means still resolving, do nothing
+}
+
+/**
+ * @brief Checks the status of an ongoing asynchronous connection attempt.
+ * If connected, sends initial C_HELLO message. If failed, cleans up.
+ * @return void
+ */
+static void check_connection_status(void)
+{
+    if (serverConnection == NULL || networkState != CLIENT_STATE_CONNECTING)
+        return;
+    int status = SDLNet_GetConnectionStatus(serverConnection);
+    if (status == 1) // Connected successfully
+    {
+        networkState = CLIENT_STATE_CONNECTED;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Connected to server!");
+        // --- Send Hello ---
+        uint8_t msg_type = MSG_TYPE_C_HELLO;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Sending C_HELLO.");
+        if (!send_buffer(&msg_type, sizeof(msg_type)))
+            return; // send_buffer handles cleanup on failure
+        last_state_send_time = SDL_GetTicks();
+    }
+    else if (status == -1) // Connection failed
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Connection failed: %s", SDL_GetError());
+        cleanup(); // Cleanup on failure
+    }
+    // status == 0 means still connecting, do nothing
+}
+
+/**
+ * @brief Handles the S_WELCOME message from the server, storing the assigned client index
+ * and initializing player and camera entities.
+ * @param state The application state.
+ * @param receivedIndex The client index assigned by the server.
+ * @return void
+ */
+static void handle_server_welcome(AppState *state, int receivedIndex)
+{
+    if (myClientIndex != -1)
+    {
+        // Avoid processing duplicate welcome messages
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received duplicate S_WELCOME (myIndex already %d). Ignoring.", myClientIndex);
+        return;
+    }
+    myClientIndex = receivedIndex;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_WELCOME, assigned myClientIndex = %d", myClientIndex);
+
+    // --- Initialize Local Player and Camera ---
+    if (!init_player(state->renderer, myClientIndex))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed init_player after WELCOME.");
+        cleanup(); // Network cleanup
+        return;    // Avoid further processing
+    }
+    if (init_camera(state->renderer) == SDL_APP_FAILURE)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed init_camera after WELCOME.");
+        // Attempt player cleanup before network cleanup
+        int p_idx = find_entity("player");
+        if (p_idx != -1 && entities[p_idx].cleanup)
+            entities[p_idx].cleanup();
+        cleanup(); // Network cleanup
+        return;    // Avoid further processing
+    }
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Player and Camera initialized.");
+}
+
+/**
+ * @brief Updates the state of a remote player based on received data.
+ * @param data Pointer to the PlayerStateData received from the server.
+ * @return void
+ */
+static void handle_remote_player_state_update(const PlayerStateData *data)
+{
+    if (!data)
+        return;
+    uint8_t remote_id = data->client_id;
+
+    // Ignore updates for self or invalid IDs
+    if (remote_id == myClientIndex || remote_id >= MAX_CLIENTS)
+        return;
+
+    if (!remotePlayers[remote_id].active)
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received first state update for remote player %u.", (unsigned int)remote_id);
+        remotePlayers[remote_id].active = true;
+    }
+    remotePlayers[remote_id].position = data->position;
+    remotePlayers[remote_id].sprite_portion = data->sprite_portion;
+    remotePlayers[remote_id].flip_mode = data->flip_mode;
+}
+
+/**
+ * @brief Processes a single message received from the server based on its type byte.
+ * @param buffer Pointer to the received data buffer.
+ * @param bytesReceived The number of bytes in the buffer.
+ * @param state The application state.
+ * @return void
+ */
 static void process_server_message(char *buffer, int bytesReceived, AppState *state)
 {
-    if (buffer == NULL || bytesReceived <= 0)
-        return;
-
-    // Check if received data is enough for at least the message type
     if (bytesReceived < (int)sizeof(uint8_t))
     {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete message (< type byte) from server", __func__);
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete message (< type byte)");
         return;
     }
+    uint8_t msg_type_byte;
+    memcpy(&msg_type_byte, buffer, sizeof(uint8_t)); // Read the type byte
 
-    uint8_t msg_type_byte = buffer[0];
-    switch (msg_type_byte)
+    switch ((MessageType)msg_type_byte)
     {
-    // In net_client.c -> process_server_message
     case MSG_TYPE_S_WELCOME:
-        // Problem: buffer[4] reads only ONE byte, not the full integer!
-        // init_player(state->renderer, buffer[4]);
-
-        // Check if we received enough data for the full message (type + index)
-        if (bytesReceived >= (int)(sizeof(uint8_t) + sizeof(int)))
+        // --- Handle Welcome ---
+        if (bytesReceived >= (int)(sizeof(int) * 2)) // Check size (using sizeof(int) placeholder as per original)
         {
-            int receivedIndex;
-            // Correctly copy the integer starting from the 2nd byte (index 1 is type)
-            // BUT: Server sends two ints! Index is the second int.
-            // int msgArray[2]; msgArray[0] = type; msgArray[1] = index;
-            // So index starts at byte offset sizeof(int).
-            if (bytesReceived >= (int)(sizeof(int) * 2)) // Need space for TWO ints
-            {
-                memcpy(&receivedIndex, buffer + sizeof(int), sizeof(int)); // Copy the second int
-                SDL_Log("Received S_WELCOME, assigning myIndex = %d", receivedIndex);
-                init_player(state->renderer, receivedIndex);
-                init_camera(state->renderer); // Assuming camera depends on player
-            }
-            else
-            {
-                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete S_WELCOME message (%d bytes, needed %zu)", __func__, bytesReceived, sizeof(int) * 2);
-            }
+            int idx;
+            memcpy(&idx, buffer + sizeof(int), sizeof(int)); // Read index
+            handle_server_welcome(state, idx);
         }
         else
         {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete S_WELCOME message type (%d bytes, needed %zu)", __func__, bytesReceived, sizeof(int) * 2);
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_WELCOME (%d bytes, needed %u)", bytesReceived, (unsigned int)(sizeof(int) * 2));
         }
         break;
 
-        // case MSG_TYPE_PLAYER_POS:
-        //     // Check if received data is enough for type + update struct
-        //     if (bytesReceived >= (int)(1 + sizeof(PlayerPosUpdateData)))
-        //     {
-        //         PlayerPosUpdateData update_data;
-        //         memcpy(&update_data, buffer + 1, sizeof(PlayerPosUpdateData));
-        //         uint8_t remote_client_id = update_data.client_id;
-
-        //         // Validate client ID before accessing array
-        //         if (remote_client_id < MAX_CLIENTS)
-        //         {
-        //             remotePlayers[remote_client_id].position = update_data.position;
-        //             remotePlayers[remote_client_id].active = true; // Mark as active
-        //         }
-        //         else
-        //         {
-        //             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd POS update with invalid client ID: %u", __func__, (unsigned int)remote_client_id);
-        //         }
-        //     }
-        //     else
-        //     {
-        //         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd incomplete PLAYER_POS message from server (%d bytes)", __func__, bytesReceived);
-        //     }
-        //     break;
+    case MSG_TYPE_PLAYER_STATE:
+        // --- Handle Player State Update ---
+        if (bytesReceived >= (int)(sizeof(uint8_t) + sizeof(PlayerStateData)))
+        {
+            PlayerStateData state_data;
+            memcpy(&state_data, buffer + sizeof(uint8_t), sizeof(PlayerStateData)); // Read state data
+            handle_remote_player_state_update(&state_data);
+        }
+        else
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete PLAYER_STATE msg (%d bytes, needed %u)", bytesReceived, (unsigned int)(sizeof(uint8_t) + sizeof(PlayerStateData)));
+        }
+        break;
 
     default:
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] Rcvd unknown message type (%u) from server", __func__, (unsigned int)msg_type_byte);
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd unknown message type (%u) from server", (unsigned int)msg_type_byte);
         break;
     }
 }
 
-// Handles receiving all available data from the server in a non-blocking way
+/**
+ * @brief Reads all available data from the server socket and processes messages.
+ * Handles disconnection if read fails.
+ * @param state The application state.
+ * @return SDL_APP_SUCCESS if processing completed without disconnect, SDL_APP_FAILURE on disconnect/error.
+ */
 static SDL_AppResult receive_server_data(AppState *state)
 {
-    if (!isConnected || serverConnection == NULL)
-        return SDL_APP_FAILURE;
+    char buffer[BUFFER_SIZE];
+    int bytesReceived;
 
-    while (true)
+    // Read messages in a loop until no more data or buffer is full
+    while ((bytesReceived = read_from_server(buffer, sizeof(buffer))) > 0)
     {
-        char buffer[BUFFER_SIZE];
-        int bytesReceived = SDLNet_ReadFromStreamSocket(serverConnection, buffer, sizeof(buffer));
-
-        if (bytesReceived > 0)
-        {
-            process_server_message(buffer, bytesReceived, state);
-            // If we read less than the buffer size, assume no more data for now
-            if (bytesReceived < (int)sizeof(buffer))
-            {
-                break; // Exit loop for this frame
-            }
-            // Else, loop again immediately
-        }
-        else if (bytesReceived == 0) // No data available right now
-        {
-            break; // Exit loop for this frame
-        }
-        else // bytesReceived < 0 indicates error/disconnect
-        {
-            const char *sdlError = SDL_GetError();
-            if (strcmp(sdlError, "Socket is not connected") != 0 && strcmp(sdlError, "Connection reset by peer") != 0)
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_ReadFromStreamSocket failed: %s. Disconnected.", __func__, sdlError);
-            }
-            else
-            {
-                SDL_Log("Disconnected from server.");
-            }
-            cleanup();              // Disconnect
-            return SDL_APP_FAILURE; // Signal failure
-        }
+        process_server_message(buffer, bytesReceived, state);
+        // If we didn't fill the buffer, we've read the last pending message for now
+        if (bytesReceived < (int)sizeof(buffer))
+            break;
     }
-    return SDL_APP_SUCCESS; // Success for this frame
+
+    if (bytesReceived < 0) // Read failed or disconnected
+    {
+        const char *sdlError = SDL_GetError();
+        // Log error only if it's not a standard disconnect reason
+        if (sdlError && sdlError[0] != '\0' && strcmp(sdlError, "Socket is not connected") != 0 && strcmp(sdlError, "Connection reset by peer") != 0)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Read error: %s. Disconnecting.", sdlError);
+        }
+        else
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Disconnected from server.");
+        }
+        cleanup(); // Ensure cleanup happens on disconnect
+        return SDL_APP_FAILURE;
+    }
+
+    return SDL_APP_SUCCESS; // Still connected
 }
 
-// // Handles sending client data
-// static SDL_AppResult send_client_data(void)
-// {
-//     if (!isConnected || serverConnection == NULL)
-//         return SDL_APP_FAILURE;
+/**
+ * @brief Handles receiving data and sending periodic state updates when connected.
+ * @param state The application state.
+ * @return void
+ */
+static void handle_server_communication(AppState *state)
+{
+    if (networkState != CLIENT_STATE_CONNECTED || serverConnection == NULL)
+        return;
 
-//     // Prepare buffer: 1 byte for type + size of position data
-//     uint8_t send_buffer[1 + sizeof(SDL_FPoint)];
-//     send_buffer[0] = MSG_TYPE_PLAYER_POS;
-//     extern SDL_FPoint player_position; // Access the global player position
-//     memcpy(send_buffer + 1, &player_position, sizeof(SDL_FPoint));
+    // --- Receive Data ---
+    if (receive_server_data(state) == SDL_APP_FAILURE)
+        return; // Disconnected during receive
 
-//     // Send position update
-//     if (!SDLNet_WriteToStreamSocket(serverConnection, send_buffer, sizeof(send_buffer)))
-//     {
-//         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] SDLNet_WriteToStreamSocket (position) failed: %s. Disconnecting.", __func__, SDL_GetError());
-//         cleanup();              // Disconnect on failure
-//         return SDL_APP_FAILURE; // Signal failure
-//     }
+    // --- Send State Update (Throttled) ---
+    Uint64 current_time = SDL_GetTicks();
+    if (current_time > last_state_send_time + STATE_UPDATE_INTERVAL_MS)
+    {
+        send_local_player_state(); // Function defined below in Public API section
+        last_state_send_time = current_time;
+    }
+}
 
-//     return SDL_APP_SUCCESS;
-// }
+/**
+ * @brief Main update function for the network client entity, run each frame.
+ * Manages the state machine for connection and communication.
+ * @param state The application state.
+ * @return void
+ */
+static void update(AppState *state)
+{
+    switch (networkState)
+    {
+    case CLIENT_STATE_DISCONNECTED:
+        attempt_resolve();
+        break;
+    case CLIENT_STATE_RESOLVING:
+        check_resolve_status();
+        break;
+    case CLIENT_STATE_CONNECTING:
+        check_connection_status();
+        break;
+    case CLIENT_STATE_CONNECTED:
+        handle_server_communication(state);
+        break;
+    }
+}
+
+// --- Public API Function Implementations ---
+
+SDL_AppResult init_client(void)
+{
+    cleanup(); // Ensure clean state before init
+    networkState = CLIENT_STATE_DISCONNECTED;
+    memset(remotePlayers, 0, sizeof(remotePlayers));
+
+    Entity client_e = {
+        .name = "net_client",
+        .update = update, // Assign the state machine update function
+        .cleanup = cleanup};
+
+    if (create_entity(client_e) == SDL_APP_FAILURE)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed create net_client entity.");
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Network client entity initialized.");
+    return SDL_APP_SUCCESS;
+}
+
+int get_my_client_index(void)
+{
+    return myClientIndex;
+}
+
+bool is_client_connected(void)
+{
+    return networkState == CLIENT_STATE_CONNECTED;
+}
+
+void send_local_player_state(void)
+{
+    // Check connection and assigned index
+    if (networkState != CLIENT_STATE_CONNECTED || myClientIndex < 0)
+        return;
+
+    PlayerStateData data;
+    // Retrieve local player state
+    if (!get_local_player_state_for_network(&data))
+    {
+        // Log omitted as per original code comment removal
+        return;
+    }
+
+    // Prepare message buffer
+    uint8_t buffer[sizeof(uint8_t) + sizeof(PlayerStateData)];
+    buffer[0] = (uint8_t)MSG_TYPE_PLAYER_STATE;                       // Set message type
+    memcpy(buffer + sizeof(uint8_t), &data, sizeof(PlayerStateData)); // Copy payload
+
+    // Send the buffer
+    send_buffer(buffer, sizeof(buffer));
+}

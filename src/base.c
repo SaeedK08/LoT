@@ -1,18 +1,27 @@
-
 #include "../include/base.h"
-#define MAX_BASES 2
 
-// Base position
+// --- Static Variables ---
+
+// World coordinates for the center of each base.
 static SDL_FPoint base_positions[MAX_BASES] = {
-    {100.0f, 850.0f},
-    {3100.0f, 850.0f}};
+    {100.0f, 850.0f}, // Base 0 position
+    {3100.0f, 850.0f} // Base 1 position
+};
 
-static SDL_Texture *base_textures[MAX_BASES] = {NULL};
+// Textures for each base.
+static SDL_Texture *base_textures[MAX_BASES] = {NULL, NULL};
 
-// Base Dimensions
+// Dimensions for rendering the base sprites.
 static const float BASE_WIDTH = 200.0f;
 static const float BASE_HEIGHT = 250.0f;
 
+// --- Static Helper Functions ---
+
+/**
+ * @brief Cleans up resources used by the base system, specifically the textures.
+ * @param void
+ * @return void
+ */
 static void cleanup()
 {
   for (int i = 0; i < MAX_BASES; i++)
@@ -21,21 +30,26 @@ static void cleanup()
     {
       SDL_DestroyTexture(base_textures[i]);
       base_textures[i] = NULL;
-      SDL_Log("All base texture cleaned up.");
     }
   }
+  SDL_Log("All base textures cleaned up.");
 }
 
+/**
+ * @brief Renders the base sprites at their calculated screen positions.
+ * @param state Pointer to the global application state, containing the renderer.
+ * @return void
+ */
 static void render(AppState *state)
 {
-  // Check that the texture has loaded
   for (int i = 0; i < MAX_BASES; i++)
   {
-
     if (!base_textures[i])
-      continue;
+    {
+      continue; // Skip rendering if texture isn't loaded.
+    }
 
-    // Calculate screen position based on world position and camera
+    // Calculate screen position based on world position, camera offset, and sprite dimensions.
     float screen_x = base_positions[i].x - camera.x - BASE_WIDTH / 2.0f;
     float screen_y = base_positions[i].y - camera.y - BASE_HEIGHT / 2.0f;
 
@@ -45,47 +59,58 @@ static void render(AppState *state)
         BASE_WIDTH,
         BASE_HEIGHT};
 
-    // Render castle
+    // Render the base texture.
     SDL_RenderTexture(state->renderer, base_textures[i], NULL, &base_dest_rect);
   }
 }
 
+// --- Public API Function Implementations ---
+
 SDL_AppResult init_base(SDL_Renderer *renderer)
 {
+  // --- Load Textures ---
   const char *paths[MAX_BASES] = {
       "./resources/Sprites/Blue_Team/Castle_Blue.png",
       "./resources/Sprites/Red_Team/Castle_Red.png"};
 
   for (int i = 0; i < MAX_BASES; i++)
   {
-
-    base_textures[i] = IMG_LoadTexture(renderer, paths[i]);
-
-    if (!base_textures[i])
+    if (base_textures[i] == NULL) // Load only if not already loaded.
     {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to load base texture '%s': %s", __func__, paths[i], SDL_GetError());
+      base_textures[i] = IMG_LoadTexture(renderer, paths[i]);
+      if (!base_textures[i])
+      {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base] Failed to load base texture '%s': %s", paths[i], SDL_GetError());
+        // Clean up any textures loaded so far before failing.
+        cleanup();
+        return SDL_APP_FAILURE;
+      }
+      // Use nearest neighbor scaling for pixel art.
+      SDL_SetTextureScaleMode(base_textures[i], SDL_SCALEMODE_NEAREST);
+      SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Loaded texture: %s", paths[i]);
+    }
+  }
+
+  // --- Register Entity ---
+  // Register the base entity system if it hasn't been registered yet.
+  if (find_entity("base") == -1)
+  {
+    Entity base_entity = {
+        .name = "base",
+        .update = NULL,
+        .render = render,
+        .cleanup = cleanup,
+        .handle_events = NULL};
+
+    if (create_entity(base_entity) == SDL_APP_FAILURE)
+    {
+      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base] Failed to create base entity.");
+      cleanup(); // Clean up textures if entity registration fails.
       return SDL_APP_FAILURE;
     }
-    SDL_SetTextureScaleMode(base_textures[i], SDL_SCALEMODE_NEAREST);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Base entity created.");
   }
 
-  Entity base_entity = {
-      .name = "base",
-      .cleanup = cleanup,
-      .render = render};
-
-  if (create_entity(base_entity) == SDL_APP_FAILURE)
-  {
-    // SDL_DestroyTexture(base_textures[i]);
-
-    for (int i = 0; i < MAX_BASES; i++)
-    {
-      cleanup();
-    }
-    // base_texture = NULL;
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_Log("Tower entity initialized.");
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Base system initialized.");
   return SDL_APP_SUCCESS;
 }
