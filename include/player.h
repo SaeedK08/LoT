@@ -11,13 +11,13 @@
 struct Player;
 
 /**
- * @brief Initializes the player resources and entity for a specific client index.
- * Creates the player entity if it doesn't exist. Assumes it's the local player.
+ * @brief Initializes the player resources and entity for a specific client index and team.
  * @param renderer The main SDL renderer.
  * @param assigned_player_index The client index assigned to this player.
+ * @param team_arg The team ID (BLUE_TEAM or RED_TEAM) assigned to this player.
  * @return Pointer to the internally managed Player struct, or NULL on failure.
  */
-struct Player *init_player(SDL_Renderer *renderer, int assigned_player_index);
+struct Player *init_player(SDL_Renderer *renderer, int assigned_player_index, bool team_arg);
 
 /**
  * @brief Gets the current world coordinates of the local player.

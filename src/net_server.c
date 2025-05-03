@@ -14,7 +14,6 @@ typedef struct
 
 static SDLNet_Server *serverSocket = NULL;
 static ClientInfo clients[MAX_CLIENTS];
-
 // --- Forward Declarations ---
 
 static void disconnectClient(int clientIndex, const char *reason);
@@ -363,8 +362,8 @@ SDL_AppResult init_server()
     // --- Create Server Entity ---
     Entity server_e = {
         .name = "net_server",
-        .update = update,   // Assign server update logic
-        .cleanup = cleanup, // Assign server cleanup logic
+        .update = update,
+        .cleanup = cleanup,
         .handle_events = NULL,
         .render = NULL};
 
@@ -381,7 +380,6 @@ SDL_AppResult init_server()
     return SDL_APP_SUCCESS;
 }
 
-// Doxygen should be in net_server.h
 int get_active_client_count(void)
 {
     int count = 0;
@@ -395,7 +393,6 @@ int get_active_client_count(void)
     return count;
 }
 
-// Doxygen should be in net_server.h
 void broadcast_buffer(const void *buffer, int length, int excludeClientIndex)
 {
     for (int i = 0; i < MAX_CLIENTS; ++i)
@@ -403,7 +400,7 @@ void broadcast_buffer(const void *buffer, int length, int excludeClientIndex)
         // Send if client is active and not the excluded one
         if (clients[i].active && i != excludeClientIndex)
         {
-            send_buffer_to_client(i, buffer, length); // Forward declaration needed
+            send_buffer_to_client(i, buffer, length);
         }
     }
 }

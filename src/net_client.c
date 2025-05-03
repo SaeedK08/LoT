@@ -18,7 +18,7 @@ static ClientNetworkState networkState = CLIENT_STATE_DISCONNECTED;
 static int myClientIndex = -1;
 static Uint64 last_state_send_time = 0;
 const Uint32 STATE_UPDATE_INTERVAL_MS = 50; // Send state ~20 times/sec
-
+static bool client_team;
 RemotePlayer remotePlayers[MAX_CLIENTS];
 
 // --- Static Helper Functions ---
@@ -195,7 +195,7 @@ static void handle_server_welcome(AppState *state, int receivedIndex)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_WELCOME, assigned myClientIndex = %d", myClientIndex);
 
     // --- Initialize Local Player and Camera ---
-    if (!init_player(state->renderer, myClientIndex))
+    if (!init_player(state->renderer, myClientIndex, client_team))
     {
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed init_player after WELCOME.");
         cleanup(); // Network cleanup
@@ -237,6 +237,7 @@ static void handle_remote_player_state_update(const PlayerStateData *data)
     remotePlayers[remote_id].position = data->position;
     remotePlayers[remote_id].sprite_portion = data->sprite_portion;
     remotePlayers[remote_id].flip_mode = data->flip_mode;
+    remotePlayers[remote_id].team = data->team;
 }
 
 /**
@@ -381,15 +382,17 @@ static void update(AppState *state)
 
 // --- Public API Function Implementations ---
 
-SDL_AppResult init_client(void)
+SDL_AppResult init_client(bool team_arg)
 {
     cleanup(); // Ensure clean state before init
     networkState = CLIENT_STATE_DISCONNECTED;
     memset(remotePlayers, 0, sizeof(remotePlayers));
 
+    client_team = team_arg;
+
     Entity client_e = {
         .name = "net_client",
-        .update = update, // Assign the state machine update function
+        .update = update,
         .cleanup = cleanup};
 
     if (create_entity(client_e) == SDL_APP_FAILURE)
@@ -422,7 +425,6 @@ void send_local_player_state(void)
     // Retrieve local player state
     if (!get_local_player_state_for_network(&data))
     {
-        // Log omitted as per original code comment removal
         return;
     }
 

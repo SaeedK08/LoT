@@ -24,16 +24,18 @@
 #define MAP_HEIGHT 1760
 #define CAMERA_VIEW_WIDTH 600.0f
 #define CAMERA_VIEW_HEIGHT 300.0f
-#define PLAYER_WIDTH 35
-#define PLAYER_HEIGHT 67
+#define PLAYER_WIDTH 32
+#define PLAYER_HEIGHT 64
 #define ATTACK_RANGE 100.0f
-#define FRAME_WIDTH 48.0f
+#define FRAME_WIDTH 64.0f
 #define FRAME_HEIGHT 80.0f
 #define IDLE_ROW_Y 0.0f
 #define WALK_ROW_Y 80.0f
 #define NUM_IDLE_FRAMES 6
 #define NUM_WALK_FRAMES 6
 #define TIME_PER_FRAME 0.1f
+#define BLUE_TEAM 1
+#define RED_TEAM 0
 
 // --- Global Variables ---
 /**
@@ -65,6 +67,7 @@ typedef struct
   SDL_FPoint position;      /**< Player's world coordinates. */
   SDL_FRect sprite_portion; /**< Source rectangle for the player's current sprite frame. */
   SDL_FlipMode flip_mode;   /**< Horizontal flip state for the player sprite. */
+  bool team;
 } PlayerStateData;
 
 /**

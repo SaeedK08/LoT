@@ -73,15 +73,33 @@ static void cleanup_on_failure(AppState *state, bool net_quit, bool server_clean
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
   // --- Argument Parsing ---
-  bool is_server_arg = (argc <= 1); // Default to server if no args
-  for (int i = 1; i < argc; ++i)
+  bool is_server_arg;
+  bool team_arg;
+
+  if (argc <= 1) // Defaults if no args
   {
-    if (strcmp(argv[i], "--server") == 0)
+    is_server_arg = true;
+    team_arg = BLUE_TEAM;
+    SDL_Log("\nTeam blue %d\n\n", team_arg);
+  }
+  else
+  {
+    for (int i = 1; i < argc; ++i)
     {
-      is_server_arg = true;
-      break;
+      if (strcmp(argv[i], "--server") == 0)
+      {
+        is_server_arg = true;
+        break;
+      }
+      if (strcmp(argv[i], "--red") == 0)
+      {
+        team_arg = RED_TEAM;
+        SDL_Log("\nTeam red %d\n\n", team_arg);
+        break;
+      }
     }
   }
+
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Running as %s.", is_server_arg ? "server" : "client");
 
   // --- State Allocation ---
@@ -153,7 +171,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
 
   // --- Client Initialization (Always) ---
-  if (init_client() == SDL_APP_FAILURE)
+  if (init_client(team_arg) == SDL_APP_FAILURE)
   {
     cleanup_on_failure(state, true, state->is_server, false, false, false, false, false);
     *appstate = NULL;
