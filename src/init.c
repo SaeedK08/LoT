@@ -80,7 +80,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   {
     is_server_arg = true;
     team_arg = BLUE_TEAM;
-    SDL_Log("\nTeam blue %d\n\n", team_arg);
   }
   else
   {
@@ -94,7 +93,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
       if (strcmp(argv[i], "--red") == 0)
       {
         team_arg = RED_TEAM;
-        SDL_Log("\nTeam red %d\n\n", team_arg);
         break;
       }
     }

@@ -3,9 +3,14 @@
 #include "../include/common.h"
 #include "../include/camera.h"
 
-#define MAX_BASES 2
-
 // --- Public Function Declarations ---
+
+/**
+ * @brief Gets the bounds of a specific base
+ * @param baseIndex The index of the base to get the position of
+ * @return An SDL_FRect for the base
+ */
+SDL_FRect getBasePos(int baseIndex);
 
 /**
  * @brief Initializes the base entities, loads their textures, and registers the rendering system.

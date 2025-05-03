@@ -7,6 +7,8 @@
 #include "../include/net_client.h"
 #include "../include/camera.h"
 #include "../include/net_client.h"
+#include "../include/base.h"
+#include "../include/tower.h"
 
 struct Player;
 

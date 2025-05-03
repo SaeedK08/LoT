@@ -14,16 +14,24 @@
 #include <SDL3_image/SDL_image.h>
 
 // --- Constants ---
+#define BLUE_TEAM 1
+#define RED_TEAM 0
+
 #define MAX_NAME_LENGTH 64
 #define MAX_ENTITIES 100
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 512
 #define SERVER_PORT 8080
 #define HOSTNAME "localhost"
+
 #define MAP_WIDTH 3200
 #define MAP_HEIGHT 1760
+#define CLIFF_BOUNDARY 304.0f
+#define WATER_BOUNDARY 1432.0f
+
 #define CAMERA_VIEW_WIDTH 600.0f
 #define CAMERA_VIEW_HEIGHT 300.0f
+
 #define PLAYER_WIDTH 32
 #define PLAYER_HEIGHT 64
 #define ATTACK_RANGE 100.0f
@@ -34,8 +42,16 @@
 #define NUM_IDLE_FRAMES 6
 #define NUM_WALK_FRAMES 6
 #define TIME_PER_FRAME 0.1f
-#define BLUE_TEAM 1
-#define RED_TEAM 0
+#define BLUE_WIZARD_PATH "./resources/Sprites/Blue_Team/Blue_Wizard/Blue_Wizard_Spritesheet.png"
+#define RED_WIZARD_PATH "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png"
+
+#define MAX_BASES 2
+#define BASE_WIDTH 296.0f
+#define BASE_HEIGHT 205.0f
+
+#define MAX_TOWERS 4
+#define TOWER_WIDTH 114.0f
+#define TOWER_HEIGHT 183.0f
 
 // --- Global Variables ---
 /**

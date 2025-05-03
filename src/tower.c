@@ -4,18 +4,14 @@
 
 // World coordinates for the center of each tower.
 static SDL_FPoint tower_positions[MAX_TOWERS] = {
-    {700.0f, 850.0f},  // Tower 0 (Blue Team)
-    {400.0f, 850.0f},  // Tower 1 (Blue Team)
-    {2800.0f, 850.0f}, // Tower 2 (Red Team)
-    {2500.0f, 850.0f}  // Tower 3 (Red Team)
+    {800.0f, 850.0f},  // Tower 0 (Blue Team)
+    {500.0f, 850.0f},  // Tower 1 (Blue Team)
+    {2700.0f, 850.0f}, // Tower 2 (Red Team)
+    {2400.0f, 850.0f}  // Tower 3 (Red Team)
 };
 
 // Textures for the towers. Indices correspond to tower_positions.
 static SDL_Texture *tower_textures[MAX_TOWERS] = {NULL, NULL, NULL, NULL};
-
-// Dimensions used for rendering the tower sprites.
-static const float TOWER_WIDTH = 100.0f;
-static const float TOWER_HEIGHT = 200.0f;
 
 // --- Static Helper Functions ---
 
@@ -122,4 +118,20 @@ SDL_AppResult init_tower(SDL_Renderer *renderer)
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Tower] Tower system initialized.");
     return SDL_APP_SUCCESS;
+}
+
+SDL_FRect getTowerPos(int towerIndex)
+{
+    if (towerIndex < 0 || towerIndex >= MAX_TOWERS)
+    {
+        return (SDL_FRect){0, 0, 0, 0}; // Return empty rect on error
+    }
+
+    // Calculate bounds based on center position and dimensions
+    SDL_FRect bounds = {
+        tower_positions[towerIndex].x - TOWER_WIDTH / 2.0f,
+        tower_positions[towerIndex].y - TOWER_HEIGHT / 2.0f,
+        TOWER_WIDTH,
+        TOWER_HEIGHT};
+    return bounds;
 }

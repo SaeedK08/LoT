@@ -4,16 +4,14 @@
 
 // World coordinates for the center of each base.
 static SDL_FPoint base_positions[MAX_BASES] = {
-    {100.0f, 850.0f}, // Base 0 position
-    {3100.0f, 850.0f} // Base 1 position
+    {160.0f, 850.0f}, // Base 0 position
+    {3040.0f, 850.0f} // Base 1 position
 };
 
 // Textures for each base.
 static SDL_Texture *base_textures[MAX_BASES] = {NULL, NULL};
 
 // Dimensions for rendering the base sprites.
-static const float BASE_WIDTH = 200.0f;
-static const float BASE_HEIGHT = 250.0f;
 
 // --- Static Helper Functions ---
 
@@ -113,4 +111,20 @@ SDL_AppResult init_base(SDL_Renderer *renderer)
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Base system initialized.");
   return SDL_APP_SUCCESS;
+}
+
+SDL_FRect getBasePos(int baseIndex)
+{
+  if (baseIndex < 0 || baseIndex >= MAX_TOWERS)
+  {
+    return (SDL_FRect){0, 0, 0, 0}; // Return empty rect on error
+  }
+
+  // Calculate bounds based on center position and dimensions
+  SDL_FRect bounds = {
+      base_positions[baseIndex].x - BASE_WIDTH / 2.0f,
+      base_positions[baseIndex].y - BASE_HEIGHT / 2.0f,
+      BASE_WIDTH,
+      BASE_HEIGHT};
+  return bounds;
 }

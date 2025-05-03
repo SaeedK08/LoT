@@ -583,7 +583,7 @@
 </data>
  </layer>
  <objectgroup id="8" name="Collision">
-  <object id="2" x="-0.0909091" y="0.375" width="3199.72" height="303.352"/>
-  <object id="3" x="0.03125" y="1456.06" width="3199.78" height="303.813"/>
+  <object id="2" x="0" y="0" width="3200" height="304"/>
+  <object id="3" x="0" y="1432" width="3200" height="304"/>
  </objectgroup>
 </map>

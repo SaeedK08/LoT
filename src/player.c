@@ -21,20 +21,6 @@ struct Player
 // --- Static Variables ---
 Player *players_array[MAX_CLIENTS]; // Global array holding pointers to player structs, indexed by client ID.
 static int local_player_index = -1; // Index of the player controlled by this client instance, -1 if none.
-static const char BLUE_WIZARD_PATH[] = "./resources/Sprites/Blue_Team/Blue_Wizard/Blue_Wizard_Spritesheet.png";
-static const char RED_WIZARD_PATH[] = "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png";
-
-// --- Static Forward Declarations ---
-static void handle_local_player_input(Player *p, float delta_time);
-static void update_local_player_position(Player *p);
-static void update_local_player_animation(Player *p, float delta_time);
-static void render_local_player(AppState *state, Player *p);
-static void render_remote_players(AppState *state);
-static void cleanup(void);
-static void handle_events(void *appstate, SDL_Event *event);
-static void update(AppState *state);
-static void render(AppState *state);
-
 // --- Static Helper Function Definitions ---
 
 /**
@@ -125,29 +111,64 @@ static void handle_local_player_input(Player *p, float delta_time)
   const bool *keyboard_state = SDL_GetKeyboardState(NULL);
   p->is_moving = false; // Reset movement flag each frame.
 
+  SDL_FPoint tempPos = (SDL_FPoint){p->position.x, p->position.y};
+
   // --- Vertical Movement ---
   if (keyboard_state[SDL_SCANCODE_W])
   {
-    p->position.y -= p->movement_speed * delta_time;
+    tempPos.y -= p->movement_speed * delta_time;
     p->is_moving = true;
   }
   if (keyboard_state[SDL_SCANCODE_S])
   {
-    p->position.y += p->movement_speed * delta_time;
+    tempPos.y += p->movement_speed * delta_time;
     p->is_moving = true;
   }
   // --- Horizontal Movement & Flipping ---
   if (keyboard_state[SDL_SCANCODE_A])
   {
-    p->position.x -= p->movement_speed * delta_time;
+    tempPos.x -= p->movement_speed * delta_time;
     p->flip_mode = SDL_FLIP_HORIZONTAL; // Face left when moving left.
     p->is_moving = true;
   }
   if (keyboard_state[SDL_SCANCODE_D])
   {
-    p->position.x += p->movement_speed * delta_time;
+    tempPos.x += p->movement_speed * delta_time;
     p->flip_mode = SDL_FLIP_NONE; // Face right when moving right.
     p->is_moving = true;
+  }
+
+  // Create Rect of the player
+  SDL_FRect player_bounds = {
+      tempPos.x - PLAYER_WIDTH / 2.0f,
+      tempPos.y - PLAYER_HEIGHT / 2.0f,
+      PLAYER_WIDTH,
+      PLAYER_HEIGHT};
+
+  bool collision = false;
+
+  // Check if the player rect intersects base or tower rect
+  for (int i = 0; i < MAX_TOWERS; i++)
+  {
+    SDL_FRect tower_bounds = getTowerPos(i);
+    if (SDL_HasRectIntersectionFloat(&player_bounds, &tower_bounds))
+    {
+      collision = true;
+    };
+  }
+  for (int i = 0; i < MAX_BASES; i++)
+  {
+    SDL_FRect tower_bounds = getBasePos(i);
+    if (SDL_HasRectIntersectionFloat(&player_bounds, &tower_bounds))
+    {
+      collision = true;
+    };
+  }
+
+  if (!collision) // If player doesn't intersect, update position
+  {
+    p->position.y = tempPos.y;
+    p->position.x = tempPos.x;
   }
 }
 
@@ -161,7 +182,7 @@ static void update_local_player_position(Player *p)
   // Prevent player from moving outside the map horizontally.
   p->position.x = fmaxf(PLAYER_WIDTH / 2.0f, fminf(p->position.x, MAP_WIDTH - PLAYER_WIDTH / 2.0f));
   // Prevent player from moving outside the map vertically.
-  p->position.y = fmaxf(PLAYER_HEIGHT / 2.0f, fminf(p->position.y, MAP_HEIGHT - PLAYER_HEIGHT / 2.0f));
+  p->position.y = fmaxf(CLIFF_BOUNDARY, fminf(p->position.y, WATER_BOUNDARY));
 }
 
 /**
@@ -393,11 +414,11 @@ Player *init_player(SDL_Renderer *renderer, int assigned_player_index, bool team
   // --- Set Team-Based Starting Position ---
   if (team_arg == BLUE_TEAM)
   {
-    new_player->position = (SDL_FPoint){150.0f, 850.0f}; // Position near blue base.
+    new_player->position = (SDL_FPoint){350.0f, 850.0f}; // Position near blue base.
   }
   else
   {
-    new_player->position = (SDL_FPoint){3050.0f, 850.0f}; // Position near red base.
+    new_player->position = (SDL_FPoint){2850.0f, 850.0f}; // Position near red base.
   }
 
   new_player->movement_speed = 500;

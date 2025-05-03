@@ -7,7 +7,12 @@
 #include "../include/camera.h"
 #include "../include/common.h"
 
-#define MAX_TOWERS 4
+/**
+ * @brief Gets the bounds of a specific tower
+ * @param towerIndex The index of the tower to get the position of
+ * @return An SDL_FRect for the tower
+ */
+SDL_FRect getTowerPos(int towerIndex);
 
 /**
  * @brief Initializes the tower system, loads tower textures, and registers the tower entity.
