@@ -190,7 +190,7 @@ SDL_AppResult init_tower(SDL_Renderer *renderer);
  * @return SDL_APP_SUCCESS or SDL_APP_FAILURE.
  * @sa init_fireball in attack.h
  */
-SDL_AppResult init_fireball(SDL_Renderer *renderer);
+SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
 
 /**
  * @brief Activates a new fireball projectile.
@@ -202,4 +202,4 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer);
  * @param mouse_view_y Mouse Y coordinate relative to the viewport.
  * @sa activate_fireballs in attack.h
  */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y);
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team);

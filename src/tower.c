@@ -2,16 +2,14 @@
 
 // --- Static Variables ---
 
-// World coordinates for the center of each tower.
-static SDL_FPoint tower_positions[MAX_TOWERS] = {
-    {800.0f, 850.0f},  // Tower 0 (Blue Team)
-    {500.0f, 850.0f},  // Tower 1 (Blue Team)
-    {2700.0f, 850.0f}, // Tower 2 (Red Team)
-    {2400.0f, 850.0f}  // Tower 3 (Red Team)
-};
+typedef struct tower {
+    SDL_FPoint position;
+    SDL_Texture *texture;
+    SDL_Texture *destroyed;
+    float health;
+} Tower;
+Tower *towers[MAX_TOWERS];
 
-// Textures for the towers. Indices correspond to tower_positions.
-static SDL_Texture *tower_textures[MAX_TOWERS] = {NULL, NULL, NULL, NULL};
 
 // --- Static Helper Functions ---
 
@@ -24,14 +22,32 @@ static void cleanup()
 {
     for (int i = 0; i < MAX_TOWERS; i++)
     {
-        if (tower_textures[i])
+        if (towers[i]->texture)
         {
-            SDL_DestroyTexture(tower_textures[i]);
-            tower_textures[i] = NULL;
+            SDL_DestroyTexture(towers[i]->texture);
+            towers[i]->texture = NULL;
         }
     }
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Tower] All tower textures cleaned up.");
 }
+
+void damageTower(float tower_posx) {
+    for (int i = 0 ; i < MAX_TOWERS ; i++) {
+        if (towers[i]->position.x - camera.x -TOWER_WIDTH / 2.0f == tower_posx) {
+            towers[i]->health -= 10.0f;
+            if (towers[i]->health <= 0) {
+                destroyTower(i);
+            }
+        } 
+    }
+}
+
+// --- This function is for now unnecessary, but could be usefull for modularity when sending and receiving data ---
+void destroyTower(int towerIndex) {
+    towers[towerIndex]->texture = towers[towerIndex]->destroyed;
+}
+    
+
 
 /**
  * @brief Renders the tower sprites at their calculated screen positions.
@@ -43,13 +59,13 @@ static void render(AppState *state)
     for (int i = 0; i < MAX_TOWERS; i++)
     {
         // Skip rendering if the texture for this tower isn't loaded.
-        if (!tower_textures[i])
+        if (!towers[i]->texture)
             continue;
 
         // Calculate screen position based on world position, camera offset, and sprite dimensions.
         // Subtracting half width/height centers the sprite on its world position.
-        float screen_x = tower_positions[i].x - camera.x - TOWER_WIDTH / 2.0f;
-        float screen_y = tower_positions[i].y - camera.y - TOWER_HEIGHT / 2.0f;
+        float screen_x = towers[i]->position.x - camera.x - TOWER_WIDTH / 2.0f;
+        float screen_y = towers[i]->position.y - camera.y - TOWER_HEIGHT / 2.0f;
 
         SDL_FRect tower_dest_rect = {
             screen_x,
@@ -58,7 +74,7 @@ static void render(AppState *state)
             TOWER_HEIGHT};
 
         // Render the tower texture. NULL source rect uses the entire texture.
-        SDL_RenderTexture(state->renderer, tower_textures[i], NULL, &tower_dest_rect);
+        SDL_RenderTexture(state->renderer, towers[i]->texture, NULL, &tower_dest_rect);
     }
 }
 
@@ -72,24 +88,44 @@ SDL_AppResult init_tower(SDL_Renderer *renderer)
         "./resources/Sprites/Blue_Team/Tower_Blue.png",
         "./resources/Sprites/Red_Team/Tower_Red.png",
         "./resources/Sprites/Red_Team/Tower_Red.png"};
+    const char *path_destroyed = {"./resources/Sprites/Tower_Destroyed.png"};
 
     for (int i = 0; i < MAX_TOWERS; i++)
     {
-        // Only load if not already loaded (although init should only run once).
-        if (tower_textures[i] == NULL)
+        towers[i] = SDL_malloc(sizeof(Tower));
+        towers[i]->texture = IMG_LoadTexture(renderer, paths[i]);
+        towers[i]->destroyed = IMG_LoadTexture(renderer, path_destroyed);
+        if (!towers[i]->texture)
         {
-            tower_textures[i] = IMG_LoadTexture(renderer, paths[i]);
-            if (!tower_textures[i])
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Tower] Failed to load tower texture '%s': %s", paths[i], SDL_GetError());
-                // Clean up textures loaded so far before failing.
-                cleanup();
-                return SDL_APP_FAILURE;
-            }
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Tower] Loaded texture: %s", paths[i]);
-            // Use nearest neighbor scaling for pixel art.
-            SDL_SetTextureScaleMode(tower_textures[i], SDL_SCALEMODE_NEAREST);
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Tower] Failed to load tower texture '%s': %s", paths[i], SDL_GetError());
+            // Clean up textures loaded so far before failing.
+            cleanup();
+            return SDL_APP_FAILURE;
         }
+        if (!towers[i]->destroyed)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Tower] Failed to load destroyed tower texture '%s': %s", paths[i], SDL_GetError());
+            // Clean up textures loaded so far before failing.
+            cleanup();
+            return SDL_APP_FAILURE;
+        }
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Tower] Loaded texture: %s", paths[i]);
+
+        // Use nearest neighbor scaling for pixel art.
+        SDL_SetTextureScaleMode(towers[i]->texture, SDL_SCALEMODE_NEAREST);
+        switch (i) 
+        {
+            case 0: towers[i]->position = (SDL_FPoint) {500.0f, 850.0f};                   // Position of tower 1, Blue Team
+                break;                                                                     
+            case 1: towers[i]->position = (SDL_FPoint) {800.0f, 850.0f};                   // Position of tower 2, Blue Team
+                break;
+            case 2: towers[i]->position = (SDL_FPoint) {2400.0f, 850.0f};                  // Position of tower 1, Red Team
+                break;
+            case 3: towers[i]->position = (SDL_FPoint) {2700.0f, 850.0f};                  // Position of tower 2, Red Team
+                break;
+            default: break;
+        }
+        towers[i]->health = 100.0f;
     }
 
     // --- Register Entity ---
@@ -129,8 +165,8 @@ SDL_FRect getTowerPos(int towerIndex)
 
     // Calculate bounds based on center position and dimensions
     SDL_FRect bounds = {
-        tower_positions[towerIndex].x - TOWER_WIDTH / 2.0f,
-        tower_positions[towerIndex].y - TOWER_HEIGHT / 2.0f,
+        towers[towerIndex]->position.x - TOWER_WIDTH / 2.0f,
+        towers[towerIndex]->position.y - TOWER_HEIGHT / 2.0f,
         TOWER_WIDTH,
         TOWER_HEIGHT};
     return bounds;

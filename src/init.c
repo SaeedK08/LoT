@@ -201,7 +201,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
 
   // --- Attack System Initialization ---
-  if (init_fireball(state->renderer) == SDL_APP_FAILURE)
+  if (init_fireball(state->renderer, team_arg) == SDL_APP_FAILURE)
   {
     cleanup_on_failure(state, true, state->is_server, true, true, true, true, false);
     *appstate = NULL;

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../include/common.h"
+#include "../include/camera.h"
+#include "../include/tower.h"
 
 // --- Constants ---
 
@@ -24,6 +26,8 @@ typedef struct FireBall
     SDL_FPoint dst;       /**< Destination position (top-left corner) in screen coordinates. */
     SDL_FPoint target;    /**< Target position in screen coordinates the fireball moves towards. */
     int hit;              /**< Flag indicating if the fireball has hit something (1) or not (0). */
+    SDL_FRect attackable_tower1;   /**< The towers that a player can attack based on its team */ 
+    SDL_FRect attackable_tower2;   /**< The towers that a player can attack based on its team */ 
     int active;           /**< Flag indicating if the fireball slot is currently in use (1) or available (0). */
     float angle_deg;      /**< Angle of rotation in degrees for rendering. */
     float velocity_x;     /**< Horizontal velocity component. */
@@ -46,7 +50,7 @@ extern FireBall fireBalls[MAX_FIREBALLS];
  * @param renderer The main SDL renderer.
  * @return SDL_APP_SUCCESS on success, SDL_APP_FAILURE on error.
  */
-SDL_AppResult init_fireball(SDL_Renderer *renderer);
+SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
 
 /**
  * @brief Creates and launches a new fireball from the player's position towards the mouse cursor.
@@ -57,4 +61,4 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer);
  * @param mouse_view_x The mouse's X coordinate relative to the viewport.
  * @param mouse_view_y The mouse's Y coordinate relative to the viewport.
  */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y);
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team);

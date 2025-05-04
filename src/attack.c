@@ -77,7 +77,12 @@ static void update(AppState *state)
             if (sqrtf(dist_x * dist_x + dist_y * dist_y) < HIT_RANGE)
             {
                 fireBalls[i].hit = 1; // Mark for removal in the next frame.
-                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack] Fireball %d hit target.", i);
+                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower1)) {
+                    damageTower(fireBalls[i].attackable_tower1.x);
+                }
+                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower2)) {
+                    damageTower(fireBalls[i].attackable_tower2.x);
+                }
                 continue;
             }
         }
@@ -122,7 +127,7 @@ static void render(AppState *state)
 
 // --- Public API Function Implementations ---
 
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y)
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team)
 {
     if (fireBallCount >= MAX_FIREBALLS)
     {
@@ -172,11 +177,32 @@ void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, flo
     newFireBall->rotation_diff_x = 0;
     newFireBall->rotation_diff_y = 0;
 
+    // --- Decide what towers a player can attack ---
+    if (team) {
+        newFireBall->attackable_tower1 = (SDL_FRect) {2400.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
+                                                      TOWER_WIDTH, 
+                                                      TOWER_HEIGHT};
+        newFireBall->attackable_tower2 = (SDL_FRect) {2700.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
+                                                      TOWER_WIDTH, 
+                                                      TOWER_HEIGHT};
+    }
+    else  {
+        newFireBall->attackable_tower1 = (SDL_FRect) {500.0f - camera.x - TOWER_WIDTH / 2.0f, 
+                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
+                                                      TOWER_WIDTH, 
+                                                      TOWER_HEIGHT};
+        newFireBall->attackable_tower2 = (SDL_FRect) {800.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
+                                                      TOWER_WIDTH, 
+                                                      TOWER_HEIGHT};                             
+    }                                 
     fireBallCount++; // Increment active count *after* successful initialization.
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack] Fired fireball %d.", index);
 }
 
-SDL_AppResult init_fireball(SDL_Renderer *renderer)
+SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg)
 {
     // --- Load Texture ---
     // Load the texture only once if it hasn't been loaded yet.
@@ -195,6 +221,7 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer)
     // --- Initialize Fireball Pool ---
     memset(fireBalls, 0, sizeof(fireBalls));
     fireBallCount = 0;
+
     for (int i = 0; i < MAX_FIREBALLS; ++i)
     {
         fireBalls[i].texture = fireball_texture; // Pre-assign shared texture pointer.

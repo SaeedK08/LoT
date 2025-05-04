@@ -95,7 +95,7 @@ static void handle_events(void *appstate, SDL_Event *event)
     if (distance <= ATTACK_RANGE)
     {
       // Activate fireball originating from player world coords towards mouse viewport coords.
-      activate_fireballs(players_array[local_player_index]->position.x, players_array[local_player_index]->position.y, camera.x, camera.y, mouse_view_x, mouse_view_y);
+      activate_fireballs(players_array[local_player_index]->position.x, players_array[local_player_index]->position.y, camera.x, camera.y, mouse_view_x, mouse_view_y, players_array[local_player_index]->team);
     }
   }
 }

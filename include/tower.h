@@ -7,6 +7,8 @@
 #include "../include/camera.h"
 #include "../include/common.h"
 
+typedef struct tower Tower;
+
 /**
  * @brief Gets the bounds of a specific tower
  * @param towerIndex The index of the tower to get the position of
@@ -20,3 +22,6 @@ SDL_FRect getTowerPos(int towerIndex);
  * @return SDL_APP_SUCCESS on successful initialization, SDL_APP_FAILURE otherwise.
  */
 SDL_AppResult init_tower(SDL_Renderer *renderer);
+
+void damageTower(float tower_posx);
+void destroyTower(int towerIndex);
