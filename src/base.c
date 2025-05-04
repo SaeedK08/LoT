@@ -40,26 +40,30 @@ void damageBase(float base_posx)
       bases[i]->health -= 10.0f;
       if (bases[i]->health <= 0)
       {
-        destroyBase(i);
+        destroyBase(i, true);
       }
     }
   }
 }
 
 // --- This function is for now unnecessary, but could be usefull for modularity when sending and receiving data ---
-void destroyBase(int baseIndex)
+void destroyBase(int baseIndex, bool sendToServer)
 {
+  if (sendToServer) // If I have destroyed the base, tell the server
+  {
+    if ((baseIndex == BLUE_TEAM))
+    {
+      SDL_Log("Blue team has won");
+      send_match_result(MSG_TYPE_BLUE_WON, baseIndex);
+    }
+    else
+    {
+      SDL_Log("Red team has won");
+      send_match_result(MSG_TYPE_RED_WON, baseIndex);
+    }
+  }
+
   bases[baseIndex]->texture = bases[baseIndex]->destroyed;
-  if ((baseIndex == BLUE_TEAM))
-  {
-    SDL_Log("Blue team has won");
-    send_match_result(MSG_TYPE_BLUE_WON);
-  }
-  else
-  {
-    SDL_Log("Red team has won");
-    send_match_result(MSG_TYPE_RED_WON);
-  }
 }
 
 /**

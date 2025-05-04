@@ -23,4 +23,4 @@ SDL_FRect getBasePos(int baseIndex);
 SDL_AppResult init_base(SDL_Renderer *renderer);
 
 void damageBase(float base_posx);
-void destroyBase(int baseIndex);
+void destroyBase(int baseIndex, bool sendToServer);

@@ -287,12 +287,18 @@ static void process_server_message(char *buffer, int bytesReceived, AppState *st
         }
         break;
     case MSG_TYPE_BLUE_WON:
-
+        destroyBase(buffer[4], false);
         SDL_Log("Blue team has won!");
         break;
 
     case MSG_TYPE_RED_WON:
+        destroyBase(buffer[4], false);
         SDL_Log("Red team has won!");
+        break;
+
+    case MSG_TYPE_TOWER_DESTROYED:
+        destroyTower(buffer[4], false);
+        SDL_Log("Tower %d has been destroyed!", buffer[4]);
         break;
 
     default:
@@ -445,13 +451,30 @@ void send_local_player_state(void)
     send_buffer(buffer, sizeof(buffer));
 }
 
-void send_match_result(MessageType game_result)
+void send_match_result(MessageType game_result, int baseIndex)
 {
     if (networkState != CLIENT_STATE_CONNECTED || myClientIndex < 0)
         return;
 
-    uint8_t msg_type = game_result;
+    int msg_array[2];
+    msg_array[0] = (int)game_result; // Message Type
+    msg_array[1] = baseIndex;        // Base ID
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Sending Match Result.");
-    if (!send_buffer(&msg_type, sizeof(msg_type)))
+    if (!send_buffer(&msg_array, sizeof(msg_array)))
+        return; // send_buffer handles cleanup on failure
+}
+
+void send_tower_destroyed(int towerIndex)
+{
+    if (networkState != CLIENT_STATE_CONNECTED || myClientIndex < 0)
+        return;
+
+    int msg_array[2];
+    msg_array[0] = (int)MSG_TYPE_TOWER_DESTROYED; // Message Type
+    msg_array[1] = towerIndex;                    // Base ID
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Sending Tower Destruction.");
+    if (!send_buffer(&msg_array, sizeof(msg_array)))
         return; // send_buffer handles cleanup on failure
 }

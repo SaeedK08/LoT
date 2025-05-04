@@ -42,15 +42,20 @@ void damageTower(float tower_posx)
             towers[i]->health -= 10.0f;
             if (towers[i]->health <= 0)
             {
-                destroyTower(i);
+                destroyTower(i, true);
             }
         }
     }
 }
 
 // --- This function is for now unnecessary, but could be usefull for modularity when sending and receiving data ---
-void destroyTower(int towerIndex)
+void destroyTower(int towerIndex, bool sendToServer)
 {
+    if (sendToServer)
+    {
+        send_tower_destroyed(towerIndex);
+    }
+
     towers[towerIndex]->texture = towers[towerIndex]->destroyed;
 }
 

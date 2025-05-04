@@ -19,6 +19,7 @@ static ClientInfo clients[MAX_CLIENTS];
 static void disconnectClient(int clientIndex, const char *reason);
 static bool send_buffer_to_client(int clientIndex, const void *buffer, int length);
 void broadcast_buffer(const void *buffer, int length, int excludeClientIndex);
+static void broadcast_building_destroyed(MessageType msg_type, int buildingIndex, int clientIndex);
 
 // --- Static Helper Functions ---
 
@@ -194,15 +195,17 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
         }
         break;
     case MSG_TYPE_BLUE_WON:
-        uint8_t broadcast_msg[sizeof(uint8_t) + sizeof(MSG_TYPE_BLUE_WON)];
-        broadcast_msg[0] = MSG_TYPE_BLUE_WON;
-        broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
+
+        broadcast_building_destroyed(MSG_TYPE_BLUE_WON, buffer[4], clientIndex);
 
         break;
     case MSG_TYPE_RED_WON:
-        uint8_t broadcast_msg1[sizeof(uint8_t) + sizeof(MSG_TYPE_RED_WON)];
-        broadcast_msg1[0] = MSG_TYPE_RED_WON;
-        broadcast_buffer(broadcast_msg1, sizeof(broadcast_msg1), clientIndex);
+        broadcast_building_destroyed(MSG_TYPE_RED_WON, buffer[4], clientIndex);
+
+        break;
+
+    case MSG_TYPE_TOWER_DESTROYED:
+        broadcast_building_destroyed(MSG_TYPE_TOWER_DESTROYED, buffer[4], clientIndex);
 
         break;
 
@@ -415,4 +418,13 @@ void broadcast_buffer(const void *buffer, int length, int excludeClientIndex)
             send_buffer_to_client(i, buffer, length);
         }
     }
+}
+
+static void broadcast_building_destroyed(MessageType msg_type, int buildingIndex, int clientIndex)
+{
+    int broadcast_msg[2];
+    broadcast_msg[0] = (int)msg_type;
+    broadcast_msg[1] = buildingIndex;
+
+    broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
 }

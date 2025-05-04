@@ -75,7 +75,8 @@ typedef enum
   MSG_TYPE_S_WELCOME = 2,    /**< Server acknowledges connection, assigns ID. */
   MSG_TYPE_PLAYER_STATE = 3, /**< Update of a player's position and appearance. */
   MSG_TYPE_BLUE_WON = 4,
-  MSG_TYPE_RED_WON = 5
+  MSG_TYPE_RED_WON = 5,
+  MSG_TYPE_TOWER_DESTROYED = 6
 } MessageType;
 
 // --- Structures ---

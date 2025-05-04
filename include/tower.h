@@ -6,6 +6,7 @@
 #include "../include/entity.h"
 #include "../include/camera.h"
 #include "../include/common.h"
+#include "../include/net_client.h"
 
 typedef struct tower Tower;
 
@@ -24,4 +25,4 @@ SDL_FRect getTowerPos(int towerIndex);
 SDL_AppResult init_tower(SDL_Renderer *renderer);
 
 void damageTower(float tower_posx);
-void destroyTower(int towerIndex);
+void destroyTower(int towerIndex, bool sendToServer);

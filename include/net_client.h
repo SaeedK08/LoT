@@ -2,6 +2,8 @@
 
 #include "../include/common.h"
 #include "../include/player.h"
+#include "../include/base.h"
+#include "../include/tower.h"
 
 /**
  * @brief Holds state information for remote players received from the server.
@@ -43,4 +45,6 @@ bool is_client_connected(void);
  */
 void send_local_player_state(void);
 
-void send_match_result(MessageType game_result);
+void send_match_result(MessageType game_result, int baseIndex);
+
+void send_tower_destroyed(int towerIndex);
