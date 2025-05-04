@@ -45,9 +45,13 @@
 #define BLUE_WIZARD_PATH "./resources/Sprites/Blue_Team/Blue_Wizard/Blue_Wizard_Spritesheet.png"
 #define RED_WIZARD_PATH "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png"
 
+#define BUILDINGS_POS_Y 850.0f
+
 #define MAX_BASES 2
 #define BASE_WIDTH 296.0f
 #define BASE_HEIGHT 205.0f
+#define BLUE_BASE_POS_X 160.0f
+#define RED_BASE_POS_X 3040.0f
 
 #define MAX_TOWERS 4
 #define TOWER_WIDTH 114.0f
@@ -66,10 +70,12 @@ extern int entities_count;
  */
 typedef enum
 {
-  MSG_TYPE_INVALID = 0,     /**< Invalid or uninitialized message type. */
-  MSG_TYPE_C_HELLO = 1,     /**< Client initiates connection. */
-  MSG_TYPE_S_WELCOME = 2,   /**< Server acknowledges connection, assigns ID. */
-  MSG_TYPE_PLAYER_STATE = 3 /**< Update of a player's position and appearance. */
+  MSG_TYPE_INVALID = 0,      /**< Invalid or uninitialized message type. */
+  MSG_TYPE_C_HELLO = 1,      /**< Client initiates connection. */
+  MSG_TYPE_S_WELCOME = 2,    /**< Server acknowledges connection, assigns ID. */
+  MSG_TYPE_PLAYER_STATE = 3, /**< Update of a player's position and appearance. */
+  MSG_TYPE_BLUE_WON = 4,
+  MSG_TYPE_RED_WON = 5
 } MessageType;
 
 // --- Structures ---

@@ -42,3 +42,5 @@ bool is_client_connected(void);
  * @return void
  */
 void send_local_player_state(void);
+
+void send_match_result(MessageType game_result);

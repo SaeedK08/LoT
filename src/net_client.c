@@ -286,6 +286,14 @@ static void process_server_message(char *buffer, int bytesReceived, AppState *st
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete PLAYER_STATE msg (%d bytes, needed %u)", bytesReceived, (unsigned int)(sizeof(uint8_t) + sizeof(PlayerStateData)));
         }
         break;
+    case MSG_TYPE_BLUE_WON:
+
+        SDL_Log("Blue team has won!");
+        break;
+
+    case MSG_TYPE_RED_WON:
+        SDL_Log("Red team has won!");
+        break;
 
     default:
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd unknown message type (%u) from server", (unsigned int)msg_type_byte);
@@ -435,4 +443,15 @@ void send_local_player_state(void)
 
     // Send the buffer
     send_buffer(buffer, sizeof(buffer));
+}
+
+void send_match_result(MessageType game_result)
+{
+    if (networkState != CLIENT_STATE_CONNECTED || myClientIndex < 0)
+        return;
+
+    uint8_t msg_type = game_result;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Sending Match Result.");
+    if (!send_buffer(&msg_type, sizeof(msg_type)))
+        return; // send_buffer handles cleanup on failure
 }

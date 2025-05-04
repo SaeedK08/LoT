@@ -2,14 +2,14 @@
 
 // --- Static Variables ---
 
-typedef struct tower {
+typedef struct tower
+{
     SDL_FPoint position;
     SDL_Texture *texture;
     SDL_Texture *destroyed;
     float health;
 } Tower;
 Tower *towers[MAX_TOWERS];
-
 
 // --- Static Helper Functions ---
 
@@ -31,23 +31,28 @@ static void cleanup()
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Tower] All tower textures cleaned up.");
 }
 
-void damageTower(float tower_posx) {
-    for (int i = 0 ; i < MAX_TOWERS ; i++) {
-        if (towers[i]->position.x - camera.x -TOWER_WIDTH / 2.0f == tower_posx) {
+void damageTower(float tower_posx)
+{
+    for (int i = 0; i < MAX_TOWERS; i++)
+    {
+        if (towers[i]->position.x - camera.x - TOWER_WIDTH / 2.0f == tower_posx)
+        {
+            SDL_Log("Tower %d is getting damaged", i);
+
             towers[i]->health -= 10.0f;
-            if (towers[i]->health <= 0) {
+            if (towers[i]->health <= 0)
+            {
                 destroyTower(i);
             }
-        } 
+        }
     }
 }
 
 // --- This function is for now unnecessary, but could be usefull for modularity when sending and receiving data ---
-void destroyTower(int towerIndex) {
+void destroyTower(int towerIndex)
+{
     towers[towerIndex]->texture = towers[towerIndex]->destroyed;
 }
-    
-
 
 /**
  * @brief Renders the tower sprites at their calculated screen positions.
@@ -113,17 +118,22 @@ SDL_AppResult init_tower(SDL_Renderer *renderer)
 
         // Use nearest neighbor scaling for pixel art.
         SDL_SetTextureScaleMode(towers[i]->texture, SDL_SCALEMODE_NEAREST);
-        switch (i) 
+        switch (i)
         {
-            case 0: towers[i]->position = (SDL_FPoint) {500.0f, 850.0f};                   // Position of tower 1, Blue Team
-                break;                                                                     
-            case 1: towers[i]->position = (SDL_FPoint) {800.0f, 850.0f};                   // Position of tower 2, Blue Team
-                break;
-            case 2: towers[i]->position = (SDL_FPoint) {2400.0f, 850.0f};                  // Position of tower 1, Red Team
-                break;
-            case 3: towers[i]->position = (SDL_FPoint) {2700.0f, 850.0f};                  // Position of tower 2, Red Team
-                break;
-            default: break;
+        case 0:
+            towers[i]->position = (SDL_FPoint){500.0f, BUILDINGS_POS_Y}; // Position of tower 1, Blue Team
+            break;
+        case 1:
+            towers[i]->position = (SDL_FPoint){800.0f, BUILDINGS_POS_Y}; // Position of tower 2, Blue Team
+            break;
+        case 2:
+            towers[i]->position = (SDL_FPoint){2400.0f, BUILDINGS_POS_Y}; // Position of tower 1, Red Team
+            break;
+        case 3:
+            towers[i]->position = (SDL_FPoint){2700.0f, BUILDINGS_POS_Y}; // Position of tower 2, Red Team
+            break;
+        default:
+            break;
         }
         towers[i]->health = 100.0f;
     }

@@ -3,6 +3,7 @@
 #include "../include/common.h"
 #include "../include/camera.h"
 #include "../include/tower.h"
+#include "../include/base.h"
 
 // --- Constants ---
 
@@ -21,19 +22,20 @@
  */
 typedef struct FireBall
 {
-    SDL_Texture *texture; /**< Shared texture atlas for the fireball animation. */
-    SDL_FPoint src;       /**< Source rectangle coordinates within the texture atlas (not currently used for animation). */
-    SDL_FPoint dst;       /**< Destination position (top-left corner) in screen coordinates. */
-    SDL_FPoint target;    /**< Target position in screen coordinates the fireball moves towards. */
-    int hit;              /**< Flag indicating if the fireball has hit something (1) or not (0). */
-    SDL_FRect attackable_tower1;   /**< The towers that a player can attack based on its team */ 
-    SDL_FRect attackable_tower2;   /**< The towers that a player can attack based on its team */ 
-    int active;           /**< Flag indicating if the fireball slot is currently in use (1) or available (0). */
-    float angle_deg;      /**< Angle of rotation in degrees for rendering. */
-    float velocity_x;     /**< Horizontal velocity component. */
-    float velocity_y;     /**< Vertical velocity component. */
-    int rotation_diff_x;  /**< X offset adjustment due to rotation (not currently calculated). */
-    int rotation_diff_y;  /**< Y offset adjustment due to rotation (not currently calculated). */
+    SDL_Texture *texture;        /**< Shared texture atlas for the fireball animation. */
+    SDL_FPoint src;              /**< Source rectangle coordinates within the texture atlas (not currently used for animation). */
+    SDL_FPoint dst;              /**< Destination position (top-left corner) in screen coordinates. */
+    SDL_FPoint target;           /**< Target position in screen coordinates the fireball moves towards. */
+    int hit;                     /**< Flag indicating if the fireball has hit something (1) or not (0). */
+    SDL_FRect attackable_tower1; /**< The towers that a player can attack based on its team */
+    SDL_FRect attackable_tower2; /**< The towers that a player can attack based on its team */
+    SDL_FRect attackable_base;   /**< The bases that a player can attack based on its team */
+    int active;                  /**< Flag indicating if the fireball slot is currently in use (1) or available (0). */
+    float angle_deg;             /**< Angle of rotation in degrees for rendering. */
+    float velocity_x;            /**< Horizontal velocity component. */
+    float velocity_y;            /**< Vertical velocity component. */
+    int rotation_diff_x;         /**< X offset adjustment due to rotation (not currently calculated). */
+    int rotation_diff_y;         /**< Y offset adjustment due to rotation (not currently calculated). */
 } FireBall;
 
 // --- Global Variables ---

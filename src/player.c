@@ -414,11 +414,11 @@ Player *init_player(SDL_Renderer *renderer, int assigned_player_index, bool team
   // --- Set Team-Based Starting Position ---
   if (team_arg == BLUE_TEAM)
   {
-    new_player->position = (SDL_FPoint){350.0f, 850.0f}; // Position near blue base.
+    new_player->position = (SDL_FPoint){350.0f, BUILDINGS_POS_Y}; // Position near blue base.
   }
   else
   {
-    new_player->position = (SDL_FPoint){2850.0f, 850.0f}; // Position near red base.
+    new_player->position = (SDL_FPoint){2850.0f, BUILDINGS_POS_Y}; // Position near red base.
   }
 
   new_player->movement_speed = 500;

@@ -2,6 +2,9 @@
 
 #include "../include/common.h"
 #include "../include/camera.h"
+#include "../include/net_client.h"
+
+typedef struct base Base;
 
 // --- Public Function Declarations ---
 
@@ -18,3 +21,6 @@ SDL_FRect getBasePos(int baseIndex);
  * @return SDL_APP_SUCCESS on successful initialization, SDL_APP_FAILURE otherwise.
  */
 SDL_AppResult init_base(SDL_Renderer *renderer);
+
+void damageBase(float base_posx);
+void destroyBase(int baseIndex);

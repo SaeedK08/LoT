@@ -155,7 +155,7 @@ static void handle_player_state_update(int clientIndex, const PlayerStateData *d
     memcpy(broadcast_msg + sizeof(uint8_t), data, sizeof(PlayerStateData));
 
     // Broadcast to all *other* clients
-    broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex); // Forward declaration needed
+    broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
 }
 
 /**
@@ -192,6 +192,18 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Server] Rcvd incomplete PLAYER_STATE msg from %d (%d bytes, needed %u)", clientIndex, bytesReceived, (unsigned int)(sizeof(uint8_t) + sizeof(PlayerStateData)));
         }
+        break;
+    case MSG_TYPE_BLUE_WON:
+        uint8_t broadcast_msg[sizeof(uint8_t) + sizeof(MSG_TYPE_BLUE_WON)];
+        broadcast_msg[0] = MSG_TYPE_BLUE_WON;
+        broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
+
+        break;
+    case MSG_TYPE_RED_WON:
+        uint8_t broadcast_msg1[sizeof(uint8_t) + sizeof(MSG_TYPE_RED_WON)];
+        broadcast_msg1[0] = MSG_TYPE_RED_WON;
+        broadcast_buffer(broadcast_msg1, sizeof(broadcast_msg1), clientIndex);
+
         break;
 
     default:

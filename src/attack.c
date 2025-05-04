@@ -70,19 +70,25 @@ static void update(AppState *state)
 
             // --- Collision Check ---
             // Use distance squared for efficiency, avoiding sqrt calculation unless necessary.
-            // However, the original code used sqrtf, so we keep it for now.
-            // Consider changing to: (dist_x * dist_x + dist_y * dist_y) < (HIT_RANGE * HIT_RANGE)
             float dist_x = fireBalls[i].dst.x - fireBalls[i].target.x;
             float dist_y = fireBalls[i].dst.y - fireBalls[i].target.y;
             if (sqrtf(dist_x * dist_x + dist_y * dist_y) < HIT_RANGE)
             {
                 fireBalls[i].hit = 1; // Mark for removal in the next frame.
-                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower1)) {
+                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower1))
+                {
                     damageTower(fireBalls[i].attackable_tower1.x);
                 }
-                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower2)) {
+                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_tower2))
+                {
                     damageTower(fireBalls[i].attackable_tower2.x);
                 }
+                if (SDL_PointInRectFloat(&fireBalls[i].dst, &fireBalls[i].attackable_base))
+                {
+                    SDL_Log("Base is getting attack");
+                    damageBase(fireBalls[i].attackable_base.x);
+                }
+
                 continue;
             }
         }
@@ -178,26 +184,37 @@ void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, flo
     newFireBall->rotation_diff_y = 0;
 
     // --- Decide what towers a player can attack ---
-    if (team) {
-        newFireBall->attackable_tower1 = (SDL_FRect) {2400.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
-                                                      TOWER_WIDTH, 
-                                                      TOWER_HEIGHT};
-        newFireBall->attackable_tower2 = (SDL_FRect) {2700.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
-                                                      TOWER_WIDTH, 
-                                                      TOWER_HEIGHT};
+    if (team)
+    {
+        newFireBall->attackable_tower1 = (SDL_FRect){2400.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                     TOWER_WIDTH,
+                                                     TOWER_HEIGHT};
+        newFireBall->attackable_tower2 = (SDL_FRect){2700.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                     TOWER_WIDTH,
+                                                     TOWER_HEIGHT};
+        newFireBall->attackable_base = (SDL_FRect){RED_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
+                                                   BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
+                                                   BASE_WIDTH,
+                                                   BASE_HEIGHT};
     }
-    else  {
-        newFireBall->attackable_tower1 = (SDL_FRect) {500.0f - camera.x - TOWER_WIDTH / 2.0f, 
-                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
-                                                      TOWER_WIDTH, 
-                                                      TOWER_HEIGHT};
-        newFireBall->attackable_tower2 = (SDL_FRect) {800.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                      850.0f -camera.y - TOWER_HEIGHT / 2.0f, 
-                                                      TOWER_WIDTH, 
-                                                      TOWER_HEIGHT};                             
-    }                                 
+    else
+    {
+        newFireBall->attackable_tower1 = (SDL_FRect){500.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                     TOWER_WIDTH,
+                                                     TOWER_HEIGHT};
+        newFireBall->attackable_tower2 = (SDL_FRect){800.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                     TOWER_WIDTH,
+                                                     TOWER_HEIGHT};
+        newFireBall->attackable_base = (SDL_FRect){BLUE_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
+                                                   BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
+                                                   BASE_WIDTH,
+                                                   BASE_HEIGHT};
+    }
+
     fireBallCount++; // Increment active count *after* successful initialization.
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack] Fired fireball %d.", index);
 }
