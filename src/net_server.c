@@ -1,21 +1,10 @@
 #include "../include/net_server.h"
 
-/**
- * @brief Holds connection and state information for a single connected client.
- */
-typedef struct
-{
-    SDLNet_StreamSocket *socket;
-    PlayerStateData last_received_state; /**< Last known state received from this client. */
-    bool active;
-} ClientInfo;
-
 // --- Module Variables ---
-
 static SDLNet_Server *serverSocket = NULL;
 static ClientInfo clients[MAX_CLIENTS];
-// --- Forward Declarations ---
 
+// --- Forward Declarations ---
 static void disconnectClient(int clientIndex, const char *reason);
 static bool send_buffer_to_client(int clientIndex, const void *buffer, int length);
 void broadcast_buffer(const void *buffer, int length, int excludeClientIndex);
@@ -159,6 +148,17 @@ static void handle_player_state_update(int clientIndex, const PlayerStateData *d
     broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
 }
 
+static void handle_fireball_state_update(int clientIndex, const FireballStateData *data)
+{
+    // Prepare broadcast buffer: [MSG_TYPE] [FireballStateData]
+    uint8_t broadcast_msg[sizeof(uint8_t) + sizeof(FireballStateData)];
+    broadcast_msg[0] = MSG_TYPE_FIREBALL_STATE;
+    memcpy(broadcast_msg + sizeof(uint8_t), data, sizeof(FireballStateData));
+
+    // Broadcast to all *other* clients
+    broadcast_buffer(broadcast_msg, sizeof(broadcast_msg), clientIndex);
+}
+
 /**
  * @brief Processes a single message received from a client based on its type byte.
  * @param clientIndex The index of the client sending the message.
@@ -195,7 +195,6 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
         }
         break;
     case MSG_TYPE_BLUE_WON:
-
         broadcast_building_destroyed(MSG_TYPE_BLUE_WON, buffer[4], clientIndex);
 
         break;
@@ -207,6 +206,19 @@ static void process_client_message(int clientIndex, char *buffer, int bytesRecei
     case MSG_TYPE_TOWER_DESTROYED:
         broadcast_building_destroyed(MSG_TYPE_TOWER_DESTROYED, buffer[4], clientIndex);
 
+        break;
+
+    case MSG_TYPE_FIREBALL_STATE:
+        if (bytesReceived >= (int)(sizeof(uint8_t) + sizeof(FireballStateData)))
+        {
+            FireballStateData state_data;
+            memcpy(&state_data, buffer + sizeof(uint8_t), sizeof(FireballStateData)); // Read payload
+            handle_fireball_state_update(clientIndex, &state_data);
+        }
+        else
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Server] Rcvd incomplete PLAYER_STATE msg from %d (%d bytes, needed %u)", clientIndex, bytesReceived, (unsigned int)(sizeof(uint8_t) + sizeof(PlayerStateData)));
+        }
         break;
 
     default:
@@ -359,7 +371,6 @@ static bool send_buffer_to_client(int clientIndex, const void *buffer, int lengt
 
 // --- Public API Function Implementations ---
 
-// Doxygen should be in net_server.h
 SDL_AppResult init_server()
 {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Server] Initializing...");

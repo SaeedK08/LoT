@@ -57,6 +57,14 @@
 #define TOWER_WIDTH 114.0f
 #define TOWER_HEIGHT 183.0f
 
+#define HIT_RANGE 3.0f           // Distance threshold for a fireball hit.
+#define MAX_FIREBALLS 1          // Maximum number of concurrent fireballs.
+#define FIREBALL_FRAME_WIDTH 40  // Width of a single frame in the fireball spritesheet.
+#define FIREBALL_FRAME_HEIGHT 40 // Height of a single frame in the fireball spritesheet.
+#define FIREBALL_WIDTH 33        // Rendered width of the fireball.
+#define FIREBALL_HEIGHT 39       // Rendered height of the fireball.
+#define FIREBALL_SPEED 100.0f    // Movement speed of the fireball in units per second.
+
 // --- Global Variables ---
 /**
  * @brief Count of currently active entities in the `entities` array.
@@ -76,7 +84,8 @@ typedef enum
   MSG_TYPE_PLAYER_STATE = 3, /**< Update of a player's position and appearance. */
   MSG_TYPE_BLUE_WON = 4,
   MSG_TYPE_RED_WON = 5,
-  MSG_TYPE_TOWER_DESTROYED = 6
+  MSG_TYPE_TOWER_DESTROYED = 6,
+  MSG_TYPE_FIREBALL_STATE = 7
 } MessageType;
 
 // --- Structures ---
@@ -92,6 +101,18 @@ typedef struct
   SDL_FlipMode flip_mode;   /**< Horizontal flip state for the player sprite. */
   bool team;
 } PlayerStateData;
+
+typedef struct FireballStateData
+{
+  uint8_t client_id;   /**< Unique identifier for the client/player. */
+  SDL_FPoint dst;      /**< Destination position (top-left corner) in screen coordinates. */
+  SDL_FPoint target;   /**< Target position in screen coordinates the fireball moves towards. */
+  float angle_deg;     /**< Angle of rotation in degrees for rendering. */
+  float velocity_x;    /**< Horizontal velocity component. */
+  float velocity_y;    /**< Vertical velocity component. */
+  int rotation_diff_x; /**< X offset adjustment due to rotation (not currently calculated). */
+  int rotation_diff_y; /**< Y offset adjustment due to rotation (not currently calculated). */
+} FireballStateData;
 
 /**
  * @brief Holds the core application state needed by various systems.
@@ -209,4 +230,4 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
  * @param mouse_view_y Mouse Y coordinate relative to the viewport.
  * @sa activate_fireballs in attack.h
  */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team);
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer);

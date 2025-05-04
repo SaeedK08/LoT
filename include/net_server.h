@@ -3,6 +3,16 @@
 #include "../include/common.h"
 
 /**
+ * @brief Holds connection and state information for a single connected client.
+ */
+typedef struct
+{
+    SDLNet_StreamSocket *socket;
+    PlayerStateData last_received_state; /**< Last known state received from this client. */
+    bool active;
+} ClientInfo;
+
+/**
  * @brief Initializes the server socket, prepares client slots, and creates the server entity.
  * @return SDL_APP_SUCCESS on successful initialization, SDL_APP_FAILURE otherwise.
  */

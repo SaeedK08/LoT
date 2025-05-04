@@ -4,16 +4,7 @@
 #include "../include/camera.h"
 #include "../include/tower.h"
 #include "../include/base.h"
-
-// --- Constants ---
-
-#define HIT_RANGE 3.0f           // Distance threshold for a fireball hit.
-#define MAX_FIREBALLS 10         // Maximum number of concurrent fireballs.
-#define FIREBALL_FRAME_WIDTH 40  // Width of a single frame in the fireball spritesheet.
-#define FIREBALL_FRAME_HEIGHT 40 // Height of a single frame in the fireball spritesheet.
-#define FIREBALL_WIDTH 33        // Rendered width of the fireball.
-#define FIREBALL_HEIGHT 39       // Rendered height of the fireball.
-#define FIREBALL_SPEED 100.0f    // Movement speed of the fireball in units per second.
+#include "../include/net_client.h"
 
 // --- Structures ---
 
@@ -63,4 +54,4 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
  * @param mouse_view_x The mouse's X coordinate relative to the viewport.
  * @param mouse_view_y The mouse's Y coordinate relative to the viewport.
  */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team);
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer);

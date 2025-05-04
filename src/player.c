@@ -95,7 +95,7 @@ static void handle_events(void *appstate, SDL_Event *event)
     if (distance <= ATTACK_RANGE)
     {
       // Activate fireball originating from player world coords towards mouse viewport coords.
-      activate_fireballs(players_array[local_player_index]->position.x, players_array[local_player_index]->position.y, camera.x, camera.y, mouse_view_x, mouse_view_y, players_array[local_player_index]->team);
+      activate_fireballs(players_array[local_player_index]->position.x, players_array[local_player_index]->position.y, camera.x, camera.y, mouse_view_x, mouse_view_y, players_array[local_player_index]->team, true);
     }
   }
 }
@@ -421,7 +421,7 @@ Player *init_player(SDL_Renderer *renderer, int assigned_player_index, bool team
     new_player->position = (SDL_FPoint){2850.0f, BUILDINGS_POS_Y}; // Position near red base.
   }
 
-  new_player->movement_speed = 500;
+  new_player->movement_speed = 1000;
   // Set initial facing direction based on team (towards center of map).
   new_player->flip_mode = (team_arg == BLUE_TEAM) ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
   new_player->is_local_player = true;

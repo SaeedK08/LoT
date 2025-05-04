@@ -24,12 +24,7 @@ static void cleanup()
     fireBallCount = 0; // Reset count on cleanup
 }
 
-/**
- * @brief Updates the state of all active fireballs.
- * @param state Pointer to the global application state, containing delta_time.
- * @return void
- */
-static void update(AppState *state)
+static void update_local_fireball(AppState *state)
 {
     // Iterate backwards to allow safe removal of elements during iteration.
     for (int i = fireBallCount - 1; i >= 0; i--)
@@ -95,18 +90,51 @@ static void update(AppState *state)
     }
 }
 
+static void update_remote_fireball(AppState *state)
+{
+    // Iterate backwards to allow safe removal of elements during iteration.
+    for (int i = MAX_CLIENTS - 1; i >= 0; i--)
+    {
+        if (RemoteFireballs[i].active)
+        {
+            // Check if fireball was marked for removal in the previous frame.
+            if (RemoteFireballs[i].hit)
+            {
+                RemoteFireballs[i].active = 0;
+
+                continue; // Skip further processing for this slot.
+            }
+
+            // --- Position Update ---
+            RemoteFireballs[i].dst.x += RemoteFireballs[i].velocity_x * state->delta_time;
+            RemoteFireballs[i].dst.y += RemoteFireballs[i].velocity_y * state->delta_time;
+
+            // --- Boundary Check ---
+            // Mark for removal if the fireball goes too far off-screen.
+            if (RemoteFireballs[i].dst.x < -FIREBALL_WIDTH * 2 || RemoteFireballs[i].dst.x > CAMERA_VIEW_WIDTH + FIREBALL_WIDTH ||
+                RemoteFireballs[i].dst.y < -FIREBALL_HEIGHT * 2 || RemoteFireballs[i].dst.y > CAMERA_VIEW_HEIGHT + FIREBALL_HEIGHT)
+            {
+                SDL_Log("Apparently hit");
+                // RemoteFireballs[i].hit = 1; // Mark for removal in the next frame.
+                continue;
+            }
+        }
+    }
+}
+
 /**
- * @brief Renders all active fireballs.
- * @param state Pointer to the global application state, containing the renderer.
+ * @brief Updates the state of all active fireballs.
+ * @param state Pointer to the global application state, containing delta_time.
  * @return void
  */
-static void render(AppState *state)
+static void update(AppState *state)
 {
-    if (!fireball_texture)
-    {
-        return; // Don't try to render if the texture hasn't been loaded.
-    }
+    update_local_fireball(state);
+    update_remote_fireball(state);
+}
 
+static void render_local_fireball(SDL_Renderer *renderer)
+{
     for (int i = 0; i < fireBallCount; i++) // Iterate only up to the active count.
     {
         if (fireBalls[i].active)
@@ -120,7 +148,7 @@ static void render(AppState *state)
                                  FIREBALL_WIDTH,
                                  FIREBALL_HEIGHT};
 
-            SDL_RenderTextureRotated(state->renderer,
+            SDL_RenderTextureRotated(renderer,
                                      fireBalls[i].texture,
                                      &srcrect,
                                      &dstrect,
@@ -131,9 +159,71 @@ static void render(AppState *state)
     }
 }
 
+static void render_remote_fireball(SDL_Renderer *renderer)
+{
+    for (int i = 0; i < MAX_CLIENTS; i++) // Iterate only up to the active count.
+    {
+        if (RemoteFireballs[i].active)
+        {
+            SDL_Log("x:%f, y:%f dst render_remote_fireball", RemoteFireballs[i].dst.x + RemoteFireballs[i].rotation_diff_x, RemoteFireballs[i].dst.y + RemoteFireballs[i].rotation_diff_y);
+            // Define source rect from spritesheet (currently using whole texture).
+            SDL_FRect srcrect = {fireBalls[i].src.x, fireBalls[i].src.y, FIREBALL_FRAME_WIDTH, FIREBALL_FRAME_HEIGHT};
+
+            // Define destination rect on screen, adjusted for rotation offset if needed.
+            SDL_FRect dstrect = {RemoteFireballs[i].dst.x + RemoteFireballs[i].rotation_diff_x,
+                                 RemoteFireballs[i].dst.y + RemoteFireballs[i].rotation_diff_y,
+                                 FIREBALL_WIDTH,
+                                 FIREBALL_HEIGHT};
+
+            SDL_RenderTextureRotated(renderer,
+                                     fireBalls[i].texture,
+                                     &srcrect,
+                                     &dstrect,
+                                     RemoteFireballs[i].angle_deg,
+                                     NULL, // Rotation center (NULL uses dstrect center).
+                                     SDL_FLIP_NONE);
+        }
+    }
+}
+
+/**
+ * @brief Renders all active fireballs.
+ * @param state Pointer to the global application state, containing the renderer.
+ * @return void
+ */
+static void render(AppState *state)
+{
+    if (!fireball_texture)
+    {
+        return; // Don't try to render if the texture hasn't been loaded.
+    }
+    render_local_fireball(state->renderer);
+    render_remote_fireball(state->renderer);
+}
+
+static void get_local_fireball_state_for_network(int fireballIndex)
+{
+    FireballStateData out_data;
+    // Copy current state from the local fireball struct to the output struct.
+    out_data.dst.x = funcGetPlayerPos().x;
+    out_data.dst.y = funcGetPlayerPos().y;
+    SDL_Log("x:%f, y:%f get_local_fireball_state_for_network", out_data.dst.x, out_data.dst.y);
+    out_data.target = fireBalls[fireballIndex].target;
+    out_data.angle_deg = fireBalls[fireballIndex].angle_deg;
+    out_data.velocity_x = fireBalls[fireballIndex].velocity_x;
+    out_data.velocity_y = fireBalls[fireballIndex].velocity_y;
+    out_data.rotation_diff_x = fireBalls[fireballIndex].rotation_diff_x;
+    out_data.rotation_diff_y = fireBalls[fireballIndex].rotation_diff_y;
+    out_data.client_id = get_my_client_index();
+
+    send_local_fireball_state(out_data);
+
+    return;
+}
+
 // --- Public API Function Implementations ---
 
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team)
+void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer)
 {
     if (fireBallCount >= MAX_FIREBALLS)
     {
@@ -182,6 +272,11 @@ void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, flo
     // Reset rotation offset (not currently used).
     newFireBall->rotation_diff_x = 0;
     newFireBall->rotation_diff_y = 0;
+
+    if (sendToServer)
+    {
+        get_local_fireball_state_for_network(fireBallCount);
+    }
 
     // --- Decide what towers a player can attack ---
     if (team)

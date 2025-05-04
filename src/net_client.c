@@ -1,16 +1,5 @@
 #include "../include/net_client.h"
 
-/**
- * @brief Represents the different network connection states of the client.
- */
-typedef enum
-{
-    CLIENT_STATE_DISCONNECTED,
-    CLIENT_STATE_RESOLVING,
-    CLIENT_STATE_CONNECTING,
-    CLIENT_STATE_CONNECTED
-} ClientNetworkState;
-
 // --- Module Variables ---
 static SDLNet_Address *serverAddress = NULL;
 static SDLNet_StreamSocket *serverConnection = NULL;
@@ -20,6 +9,7 @@ static Uint64 last_state_send_time = 0;
 const Uint32 STATE_UPDATE_INTERVAL_MS = 50; // Send state ~20 times/sec
 static bool client_team;
 RemotePlayer remotePlayers[MAX_CLIENTS];
+RemoteFireBall RemoteFireballs[MAX_CLIENTS * MAX_FIREBALLS];
 
 // --- Static Helper Functions ---
 
@@ -240,6 +230,27 @@ static void handle_remote_player_state_update(const PlayerStateData *data)
     remotePlayers[remote_id].team = data->team;
 }
 
+static void handle_remote_fireball_state_update(const FireballStateData *data)
+{
+    if (!data)
+        return;
+    uint8_t remote_id = data->client_id;
+
+    // Ignore updates for self or invalid IDs
+    if (remote_id == myClientIndex || remote_id >= MAX_CLIENTS)
+        return;
+
+    RemoteFireballs[remote_id].active = true;
+    RemoteFireballs[remote_id].hit = 0;
+    RemoteFireballs[remote_id].dst = data->dst;
+    RemoteFireballs[remote_id].target = data->target;
+    RemoteFireballs[remote_id].angle_deg = data->angle_deg;
+    RemoteFireballs[remote_id].velocity_x = data->velocity_x;
+    RemoteFireballs[remote_id].velocity_y = data->velocity_y;
+    RemoteFireballs[remote_id].rotation_diff_x = data->rotation_diff_x;
+    RemoteFireballs[remote_id].rotation_diff_y = data->rotation_diff_y;
+}
+
 /**
  * @brief Processes a single message received from the server based on its type byte.
  * @param buffer Pointer to the received data buffer.
@@ -247,7 +258,8 @@ static void handle_remote_player_state_update(const PlayerStateData *data)
  * @param state The application state.
  * @return void
  */
-static void process_server_message(char *buffer, int bytesReceived, AppState *state)
+static void
+process_server_message(char *buffer, int bytesReceived, AppState *state)
 {
     if (bytesReceived < (int)sizeof(uint8_t))
     {
@@ -299,6 +311,21 @@ static void process_server_message(char *buffer, int bytesReceived, AppState *st
     case MSG_TYPE_TOWER_DESTROYED:
         destroyTower(buffer[4], false);
         SDL_Log("Tower %d has been destroyed!", buffer[4]);
+        break;
+
+    case MSG_TYPE_FIREBALL_STATE:
+        SDL_Log("FIREBALL RECIEVED");
+        // --- Handle Fireball State Update ---
+        if (bytesReceived >= (int)(sizeof(uint8_t) + sizeof(FireballStateData)))
+        {
+            FireballStateData state_data;
+            memcpy(&state_data, buffer + sizeof(uint8_t), sizeof(FireballStateData)); // Read state data
+            handle_remote_fireball_state_update(&state_data);
+        }
+        else
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete PLAYER_STATE msg (%d bytes, needed %u)", bytesReceived, (unsigned int)(sizeof(uint8_t) + sizeof(PlayerStateData)));
+        }
         break;
 
     default:
@@ -477,4 +504,19 @@ void send_tower_destroyed(int towerIndex)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Sending Tower Destruction.");
     if (!send_buffer(&msg_array, sizeof(msg_array)))
         return; // send_buffer handles cleanup on failure
+}
+
+void send_local_fireball_state(FireballStateData local_fireball)
+{
+    // Check connection and assigned index
+    if (networkState != CLIENT_STATE_CONNECTED || myClientIndex < 0)
+        return;
+
+    // Prepare message buffer
+    uint8_t buffer[sizeof(uint8_t) + sizeof(FireballStateData)];
+    buffer[0] = (uint8_t)MSG_TYPE_FIREBALL_STATE;                                 // Set message type
+    memcpy(buffer + sizeof(uint8_t), &local_fireball, sizeof(FireballStateData)); // Copy payload
+
+    // Send the buffer
+    send_buffer(buffer, sizeof(buffer));
 }
