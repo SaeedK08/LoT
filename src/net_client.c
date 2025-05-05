@@ -230,7 +230,7 @@ static void handle_remote_player_state_update(const PlayerStateData *data)
     remotePlayers[remote_id].team = data->team;
 }
 
-static void handle_remote_fireball_state_update(const FireballStateData *data)
+static void handle_remote_fireball_state_update(const FireballStateData *data, SDL_Window *window)
 {
     if (!data)
         return;
@@ -240,15 +240,32 @@ static void handle_remote_fireball_state_update(const FireballStateData *data)
     if (remote_id == myClientIndex || remote_id >= MAX_CLIENTS)
         return;
 
+    int window_w, window_h;
+    float scale_x, scale_y;
+    SDL_FPoint player_pos = funcGetPlayerPos();
+
+    // Get window size and calculate scaling factors for mouse coordinates.
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    // Calculate scaling based on logical presentation size vs window size.
+    scale_x = (CAMERA_VIEW_WIDTH > 0) ? (float)window_w / CAMERA_VIEW_WIDTH : 1.0f;
+    scale_y = (CAMERA_VIEW_HEIGHT > 0) ? (float)window_h / CAMERA_VIEW_HEIGHT : 1.0f;
+
+    // Convert window mouse coordinates to logical viewport coordinates.
+    float mouse_view_x = data->target.x / scale_x;
+    float mouse_view_y = data->target.y / scale_y;
+
     RemoteFireballs[remote_id].active = true;
     RemoteFireballs[remote_id].hit = 0;
-    RemoteFireballs[remote_id].dst = data->dst;
-    RemoteFireballs[remote_id].target = data->target;
+    RemoteFireballs[remote_id].dst.x = data->dst.x - camera.x;
+    RemoteFireballs[remote_id].dst.y = data->dst.y - camera.y;
+    RemoteFireballs[remote_id].target.x = mouse_view_x;
+    RemoteFireballs[remote_id].target.y = mouse_view_y;
     RemoteFireballs[remote_id].angle_deg = data->angle_deg;
     RemoteFireballs[remote_id].velocity_x = data->velocity_x;
     RemoteFireballs[remote_id].velocity_y = data->velocity_y;
     RemoteFireballs[remote_id].rotation_diff_x = data->rotation_diff_x;
     RemoteFireballs[remote_id].rotation_diff_y = data->rotation_diff_y;
+    SDL_Log("x:%f, y:%f target ", RemoteFireballs[remote_id].target.x, RemoteFireballs[remote_id].target.y);
 }
 
 /**
@@ -320,7 +337,7 @@ process_server_message(char *buffer, int bytesReceived, AppState *state)
         {
             FireballStateData state_data;
             memcpy(&state_data, buffer + sizeof(uint8_t), sizeof(FireballStateData)); // Read state data
-            handle_remote_fireball_state_update(&state_data);
+            handle_remote_fireball_state_update(&state_data, state->window);
         }
         else
         {

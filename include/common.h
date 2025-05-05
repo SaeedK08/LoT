@@ -22,7 +22,8 @@
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 512
 #define SERVER_PORT 8080
-#define HOSTNAME "localhost"
+// #define HOSTNAME "localhost"
+#define HOSTNAME "130.229.139.15"
 
 #define MAP_WIDTH 3200
 #define MAP_HEIGHT 1760
@@ -57,7 +58,7 @@
 #define TOWER_WIDTH 114.0f
 #define TOWER_HEIGHT 183.0f
 
-#define HIT_RANGE 3.0f           // Distance threshold for a fireball hit.
+#define HIT_RANGE 30.0f          // Distance threshold for a fireball hit.
 #define MAX_FIREBALLS 1          // Maximum number of concurrent fireballs.
 #define FIREBALL_FRAME_WIDTH 40  // Width of a single frame in the fireball spritesheet.
 #define FIREBALL_FRAME_HEIGHT 40 // Height of a single frame in the fireball spritesheet.
@@ -219,15 +220,3 @@ SDL_AppResult init_tower(SDL_Renderer *renderer);
  * @sa init_fireball in attack.h
  */
 SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
-
-/**
- * @brief Activates a new fireball projectile.
- * @param player_pos_x Player's world X coordinate.
- * @param player_pos_y Player's world Y coordinate.
- * @param cam_x Camera's world X coordinate.
- * @param cam_y Camera's world Y coordinate.
- * @param mouse_view_x Mouse X coordinate relative to the viewport.
- * @param mouse_view_y Mouse Y coordinate relative to the viewport.
- * @sa activate_fireballs in attack.h
- */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer);

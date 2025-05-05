@@ -54,4 +54,4 @@ SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
  * @param mouse_view_x The mouse's X coordinate relative to the viewport.
  * @param mouse_view_y The mouse's Y coordinate relative to the viewport.
  */
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer);
+void activate_fireballs(float mouse_x, float mouse_y, bool team, bool sendToServer, SDL_Window *window);

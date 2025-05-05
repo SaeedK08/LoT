@@ -54,14 +54,14 @@ static void update_local_fireball(AppState *state)
             fireBalls[i].dst.x += fireBalls[i].velocity_x * state->delta_time;
             fireBalls[i].dst.y += fireBalls[i].velocity_y * state->delta_time;
 
-            // --- Boundary Check ---
-            // Mark for removal if the fireball goes too far off-screen.
-            if (fireBalls[i].dst.x < -FIREBALL_WIDTH * 2 || fireBalls[i].dst.x > CAMERA_VIEW_WIDTH + FIREBALL_WIDTH ||
-                fireBalls[i].dst.y < -FIREBALL_HEIGHT * 2 || fireBalls[i].dst.y > CAMERA_VIEW_HEIGHT + FIREBALL_HEIGHT)
-            {
-                fireBalls[i].hit = 1; // Mark for removal in the next frame.
-                continue;
-            }
+            // // --- Boundary Check ---
+            // // Mark for removal if the fireball goes too far off-screen.
+            // if (fireBalls[i].dst.x < -FIREBALL_WIDTH * 2 || fireBalls[i].dst.x > CAMERA_VIEW_WIDTH + FIREBALL_WIDTH ||
+            //     fireBalls[i].dst.y < -FIREBALL_HEIGHT * 2 || fireBalls[i].dst.y > CAMERA_VIEW_HEIGHT + FIREBALL_HEIGHT)
+            // {
+            //     fireBalls[i].hit = 1; // Mark for removal in the next frame.
+            //     continue;
+            // }
 
             // --- Collision Check ---
             // Use distance squared for efficiency, avoiding sqrt calculation unless necessary.
@@ -93,29 +93,26 @@ static void update_local_fireball(AppState *state)
 static void update_remote_fireball(AppState *state)
 {
     // Iterate backwards to allow safe removal of elements during iteration.
-    for (int i = MAX_CLIENTS - 1; i >= 0; i--)
+    for (int i = 0; i < MAX_CLIENTS; i++)
     {
         if (RemoteFireballs[i].active)
         {
-            // Check if fireball was marked for removal in the previous frame.
-            if (RemoteFireballs[i].hit)
-            {
-                RemoteFireballs[i].active = 0;
-
-                continue; // Skip further processing for this slot.
-            }
 
             // --- Position Update ---
             RemoteFireballs[i].dst.x += RemoteFireballs[i].velocity_x * state->delta_time;
             RemoteFireballs[i].dst.y += RemoteFireballs[i].velocity_y * state->delta_time;
 
-            // --- Boundary Check ---
-            // Mark for removal if the fireball goes too far off-screen.
-            if (RemoteFireballs[i].dst.x < -FIREBALL_WIDTH * 2 || RemoteFireballs[i].dst.x > CAMERA_VIEW_WIDTH + FIREBALL_WIDTH ||
-                RemoteFireballs[i].dst.y < -FIREBALL_HEIGHT * 2 || RemoteFireballs[i].dst.y > CAMERA_VIEW_HEIGHT + FIREBALL_HEIGHT)
+            float dist_x = RemoteFireballs[i].dst.x - RemoteFireballs[i].target.x;
+            float dist_y = RemoteFireballs[i].dst.y - RemoteFireballs[i].target.y;
+            float temp = sqrtf(dist_x * dist_x + dist_y * dist_y);
+
+            SDL_Log("x:%f, y:%f dst ", RemoteFireballs[i].dst.x, RemoteFireballs[i].dst.y);
+            SDL_Log("temp %f update_remote_fireball", temp);
+            if (temp < HIT_RANGE)
             {
-                SDL_Log("Apparently hit");
-                // RemoteFireballs[i].hit = 1; // Mark for removal in the next frame.
+                SDL_Log("Reached target");
+                RemoteFireballs[i].hit = 1; // Mark for removal in the next frame.
+                RemoteFireballs[i].active = 0;
                 continue;
             }
         }
@@ -143,8 +140,8 @@ static void render_local_fireball(SDL_Renderer *renderer)
             SDL_FRect srcrect = {fireBalls[i].src.x, fireBalls[i].src.y, FIREBALL_FRAME_WIDTH, FIREBALL_FRAME_HEIGHT};
 
             // Define destination rect on screen, adjusted for rotation offset if needed.
-            SDL_FRect dstrect = {fireBalls[i].dst.x + fireBalls[i].rotation_diff_x,
-                                 fireBalls[i].dst.y + fireBalls[i].rotation_diff_y,
+            SDL_FRect dstrect = {fireBalls[i].dst.x,
+                                 fireBalls[i].dst.y,
                                  FIREBALL_WIDTH,
                                  FIREBALL_HEIGHT};
 
@@ -165,13 +162,13 @@ static void render_remote_fireball(SDL_Renderer *renderer)
     {
         if (RemoteFireballs[i].active)
         {
-            SDL_Log("x:%f, y:%f dst render_remote_fireball", RemoteFireballs[i].dst.x + RemoteFireballs[i].rotation_diff_x, RemoteFireballs[i].dst.y + RemoteFireballs[i].rotation_diff_y);
+            // SDL_Log("x:%f, y:%f dst render_remote_fireball", RemoteFireballs[i].dst.x + RemoteFireballs[i].rotation_diff_x, RemoteFireballs[i].dst.y + RemoteFireballs[i].rotation_diff_y);
             // Define source rect from spritesheet (currently using whole texture).
             SDL_FRect srcrect = {fireBalls[i].src.x, fireBalls[i].src.y, FIREBALL_FRAME_WIDTH, FIREBALL_FRAME_HEIGHT};
 
             // Define destination rect on screen, adjusted for rotation offset if needed.
-            SDL_FRect dstrect = {RemoteFireballs[i].dst.x + RemoteFireballs[i].rotation_diff_x,
-                                 RemoteFireballs[i].dst.y + RemoteFireballs[i].rotation_diff_y,
+            SDL_FRect dstrect = {RemoteFireballs[i].dst.x - PLAYER_WIDTH / 4.0f,
+                                 RemoteFireballs[i].dst.y - PLAYER_WIDTH / 2.0f,
                                  FIREBALL_WIDTH,
                                  FIREBALL_HEIGHT};
 
@@ -201,14 +198,15 @@ static void render(AppState *state)
     render_remote_fireball(state->renderer);
 }
 
-static void get_local_fireball_state_for_network(int fireballIndex)
+static void get_local_fireball_state_for_network(int fireballIndex, float mouse_x, float mouse_y)
 {
     FireballStateData out_data;
     // Copy current state from the local fireball struct to the output struct.
     out_data.dst.x = funcGetPlayerPos().x;
     out_data.dst.y = funcGetPlayerPos().y;
-    SDL_Log("x:%f, y:%f get_local_fireball_state_for_network", out_data.dst.x, out_data.dst.y);
-    out_data.target = fireBalls[fireballIndex].target;
+    out_data.target.x = mouse_x;
+    out_data.target.y = mouse_y;
+    SDL_Log("x:%f, y:%f target get_local_fireball_state_for_network", out_data.target.x, out_data.target.y);
     out_data.angle_deg = fireBalls[fireballIndex].angle_deg;
     out_data.velocity_x = fireBalls[fireballIndex].velocity_x;
     out_data.velocity_y = fireBalls[fireballIndex].velocity_y;
@@ -223,7 +221,7 @@ static void get_local_fireball_state_for_network(int fireballIndex)
 
 // --- Public API Function Implementations ---
 
-void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, float cam_y, float mouse_view_x, float mouse_view_y, bool team, bool sendToServer)
+void activate_fireballs(float mouse_x, float mouse_y, bool team, bool sendToServer, SDL_Window *window)
 {
     if (fireBallCount >= MAX_FIREBALLS)
     {
@@ -231,87 +229,113 @@ void activate_fireballs(float player_pos_x, float player_pos_y, float cam_x, flo
         return;
     }
 
-    int index = fireBallCount; // Use the current count as the index for the new fireball.
-    FireBall *newFireBall = &fireBalls[index];
+    int window_w, window_h;
+    float scale_x, scale_y;
+    SDL_FPoint player_pos = funcGetPlayerPos();
 
-    // --- Initialize New Fireball ---
-    newFireBall->active = 1;
-    newFireBall->hit = 0;
-    newFireBall->src = (SDL_FPoint){0.0f, 0.0f}; // Assuming sprite starts at 0,0 in the texture.
+    // Get window size and calculate scaling factors for mouse coordinates.
+    SDL_GetWindowSize(window, &window_w, &window_h);
+    // Calculate scaling based on logical presentation size vs window size.
+    scale_x = (CAMERA_VIEW_WIDTH > 0) ? (float)window_w / CAMERA_VIEW_WIDTH : 1.0f;
+    scale_y = (CAMERA_VIEW_HEIGHT > 0) ? (float)window_h / CAMERA_VIEW_HEIGHT : 1.0f;
 
-    // Start position relative to camera view (adjust offset from player center).
-    newFireBall->dst.x = player_pos_x - cam_x - PLAYER_WIDTH / 4.0f;
-    newFireBall->dst.y = player_pos_y - cam_y - PLAYER_HEIGHT / 2.0f;
+    // Convert window mouse coordinates to logical viewport coordinates.
+    float mouse_view_x = mouse_x / scale_x;
+    float mouse_view_y = mouse_y / scale_y;
+    // Calculate player's position within the viewport.
+    float player_view_x = player_pos.x - camera.x;
+    float player_view_y = player_pos.y - camera.y;
+    // Calculate distance between player and mouse click.
+    float dist_x = mouse_view_x - player_view_x;
+    float dist_y = mouse_view_y - player_view_y;
+    float distance = sqrtf(dist_x * dist_x + dist_y * dist_y);
 
-    newFireBall->target = (SDL_FPoint){mouse_view_x, mouse_view_y};
-
-    // --- Calculate Direction and Velocity ---
-    float dx = newFireBall->target.x - newFireBall->dst.x;
-    float dy = newFireBall->target.y - newFireBall->dst.y;
-    float length = sqrtf(dx * dx + dy * dy);
-
-    if (length > 0.001f) // Avoid division by zero or near-zero.
+    // Trigger attack if click is within range.
+    if (distance <= ATTACK_RANGE)
     {
-        // Normalize direction vector and multiply by speed.
-        newFireBall->velocity_x = (dx / length) * FIREBALL_SPEED;
-        newFireBall->velocity_y = (dy / length) * FIREBALL_SPEED;
-        // Calculate angle from direction vector.
-        float angle_rad = atan2f(dy, dx);
-        newFireBall->angle_deg = angle_rad * (180.0f / (float)M_PI);
-    }
-    else
-    {
-        // Default velocity (e.g., straight up) if click is exactly on the player spawn point.
-        newFireBall->velocity_x = 0;
-        newFireBall->velocity_y = -FIREBALL_SPEED;
-        newFireBall->angle_deg = -90.0f;
-    }
 
-    newFireBall->texture = fireball_texture; // Assign the shared texture.
+        int index = fireBallCount; // Use the current count as the index for the new fireball.
+        FireBall *newFireBall = &fireBalls[index];
 
-    // Reset rotation offset (not currently used).
-    newFireBall->rotation_diff_x = 0;
-    newFireBall->rotation_diff_y = 0;
+        // --- Initialize New Fireball ---
+        newFireBall->active = 1;
+        newFireBall->hit = 0;
+        newFireBall->src = (SDL_FPoint){0.0f, 0.0f}; // Assuming sprite starts at 0,0 in the texture.
 
-    if (sendToServer)
-    {
-        get_local_fireball_state_for_network(fireBallCount);
+        // Start position relative to camera view (adjust offset from player center).
+        newFireBall->dst.x = player_pos.x - camera.x - PLAYER_WIDTH / 4.0f;
+        newFireBall->dst.y = player_pos.y - camera.y - PLAYER_HEIGHT / 2.0f;
+
+        newFireBall->target = (SDL_FPoint){mouse_view_x, mouse_view_y};
+
+        // --- Calculate Direction and Velocity ---
+        float dx = newFireBall->target.x - newFireBall->dst.x;
+        float dy = newFireBall->target.y - newFireBall->dst.y;
+        float length = sqrtf(dx * dx + dy * dy);
+
+        if (length > 0.001f) // Avoid division by zero or near-zero.
+        {
+            // Normalize direction vector and multiply by speed.
+            newFireBall->velocity_x = (dx / length) * FIREBALL_SPEED;
+            newFireBall->velocity_y = (dy / length) * FIREBALL_SPEED;
+            // Calculate angle from direction vector.
+            float angle_rad = atan2f(dy, dx);
+            newFireBall->angle_deg = angle_rad * (180.0f / (float)M_PI);
+        }
+        else
+        {
+            // Default velocity (e.g., straight up) if click is exactly on the player spawn point.
+            newFireBall->velocity_x = 0;
+            newFireBall->velocity_y = -FIREBALL_SPEED;
+            newFireBall->angle_deg = -90.0f;
+        }
+
+        newFireBall->texture = fireball_texture; // Assign the shared texture.
+
+        // Reset rotation offset (not currently used).
+        newFireBall->rotation_diff_x = 0;
+        newFireBall->rotation_diff_y = 0;
+
+        if (sendToServer)
+        {
+            get_local_fireball_state_for_network(fireBallCount, mouse_x, mouse_y);
+        }
+
+        // --- Decide what towers a player can attack ---
+        if (team)
+        {
+            newFireBall->attackable_tower1 = (SDL_FRect){2400.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                         BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                         TOWER_WIDTH,
+                                                         TOWER_HEIGHT};
+            newFireBall->attackable_tower2 = (SDL_FRect){2700.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                         BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                         TOWER_WIDTH,
+                                                         TOWER_HEIGHT};
+            newFireBall->attackable_base = (SDL_FRect){RED_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
+                                                       BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
+                                                       BASE_WIDTH,
+                                                       BASE_HEIGHT};
+        }
+        else
+        {
+            newFireBall->attackable_tower1 = (SDL_FRect){500.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                         BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                         TOWER_WIDTH,
+                                                         TOWER_HEIGHT};
+            newFireBall->attackable_tower2 = (SDL_FRect){800.0f - camera.x - TOWER_WIDTH / 2.0f,
+                                                         BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
+                                                         TOWER_WIDTH,
+                                                         TOWER_HEIGHT};
+            newFireBall->attackable_base = (SDL_FRect){BLUE_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
+                                                       BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
+                                                       BASE_WIDTH,
+                                                       BASE_HEIGHT};
+        }
+
+        fireBallCount++; // Increment active count *after* successful initialization.
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack] Fired fireball %d.", index);
     }
-
-    // --- Decide what towers a player can attack ---
-    if (team)
-    {
-        newFireBall->attackable_tower1 = (SDL_FRect){2400.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
-                                                     TOWER_WIDTH,
-                                                     TOWER_HEIGHT};
-        newFireBall->attackable_tower2 = (SDL_FRect){2700.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
-                                                     TOWER_WIDTH,
-                                                     TOWER_HEIGHT};
-        newFireBall->attackable_base = (SDL_FRect){RED_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
-                                                   BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
-                                                   BASE_WIDTH,
-                                                   BASE_HEIGHT};
-    }
-    else
-    {
-        newFireBall->attackable_tower1 = (SDL_FRect){500.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
-                                                     TOWER_WIDTH,
-                                                     TOWER_HEIGHT};
-        newFireBall->attackable_tower2 = (SDL_FRect){800.0f - camera.x - TOWER_WIDTH / 2.0f,
-                                                     BUILDINGS_POS_Y - camera.y - TOWER_HEIGHT / 2.0f,
-                                                     TOWER_WIDTH,
-                                                     TOWER_HEIGHT};
-        newFireBall->attackable_base = (SDL_FRect){BLUE_BASE_POS_X - camera.x - BASE_WIDTH / 2.0f,
-                                                   BUILDINGS_POS_Y - camera.y - BASE_HEIGHT / 2.0f,
-                                                   BASE_WIDTH,
-                                                   BASE_HEIGHT};
-    }
-
-    fireBallCount++; // Increment active count *after* successful initialization.
-    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack] Fired fireball %d.", index);
 }
 
 SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg)

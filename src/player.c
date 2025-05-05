@@ -68,35 +68,9 @@ static void handle_events(void *appstate, SDL_Event *event)
     return;
 
   AppState *pState = (AppState *)(appstate);
-  int window_w, window_h;
-  float scale_x, scale_y;
-
-  // Get window size and calculate scaling factors for mouse coordinates.
-  SDL_GetWindowSize(pState->window, &window_w, &window_h);
-  // Calculate scaling based on logical presentation size vs window size.
-  scale_x = (CAMERA_VIEW_WIDTH > 0) ? (float)window_w / CAMERA_VIEW_WIDTH : 1.0f;
-  scale_y = (CAMERA_VIEW_HEIGHT > 0) ? (float)window_h / CAMERA_VIEW_HEIGHT : 1.0f;
-
-  // Check for left mouse button clicks.
   if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT)
   {
-    // Convert window mouse coordinates to logical viewport coordinates.
-    float mouse_view_x = event->button.x / scale_x;
-    float mouse_view_y = event->button.y / scale_y;
-    // Calculate player's position within the viewport.
-    float player_view_x = players_array[local_player_index]->position.x - camera.x;
-    float player_view_y = players_array[local_player_index]->position.y - camera.y;
-    // Calculate distance between player and mouse click.
-    float dist_x = mouse_view_x - player_view_x;
-    float dist_y = mouse_view_y - player_view_y;
-    float distance = sqrtf(dist_x * dist_x + dist_y * dist_y);
-
-    // Trigger attack if click is within range.
-    if (distance <= ATTACK_RANGE)
-    {
-      // Activate fireball originating from player world coords towards mouse viewport coords.
-      activate_fireballs(players_array[local_player_index]->position.x, players_array[local_player_index]->position.y, camera.x, camera.y, mouse_view_x, mouse_view_y, players_array[local_player_index]->team, true);
-    }
+    activate_fireballs(event->button.x, event->button.y, players_array[local_player_index]->team, true, pState->window);
   }
 }
 
