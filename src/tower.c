@@ -88,7 +88,7 @@ static void update_single_tower(TowerInstance *tower, AppState *state, int tower
         {
             SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Tower %d targeting player at (%.1f, %.1f)", towerIndex, target_pos.x, target_pos.y);
 
-            AttackManager_ServerSpawnTowerAttack(am, state, ATTACK_TYPE_FIREBALL, target_pos, towerIndex);
+            AttackManager_ServerSpawnTowerAttack(am, state, TOWER_ATTACK_TYPE, target_pos, towerIndex);
 
             tower->attack_cooldown_timer = TOWER_ATTACK_COOLDOWN;
         }

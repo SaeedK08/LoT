@@ -242,7 +242,7 @@ static void internal_process_client_message(NetServerState ns_state, int client_
 
             if (state->attack_manager)
             {
-                AttackManager_HandleClientSpawnRequest(state->attack_manager, state, sender_id, (AttackType)req_data.attack_type, req_data.target_pos);
+                AttackManager_HandleClientSpawnRequest(state->attack_manager, state, sender_id, req_data);
             }
             else
             {

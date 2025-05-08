@@ -45,7 +45,9 @@ typedef enum MessageType
  */
 typedef enum AttackType
 {
-    ATTACK_TYPE_FIREBALL = 0,
+    PLAYER_ATTACK_TYPE_FIREBALL = 0,
+    PLAYER_ATTACK_TYPE_LIGHTNING_ARROW = 1,
+    TOWER_ATTACK_TYPE = 2,
 } AttackType;
 
 // --- Destroyable Object Type Enum ---
@@ -107,6 +109,7 @@ typedef struct Msg_ClientSpawnAttackData
     uint8_t message_type;  /**< Should be MSG_TYPE_C_SPAWN_ATTACK. */
     uint8_t attack_type;   /**< The type of attack (AttackType enum). */
     SDL_FPoint target_pos; /**< Target world position for the attack. */
+    bool team;
 } Msg_ClientSpawnAttackData;
 
 /**
@@ -123,6 +126,7 @@ typedef struct Msg_ServerSpawnAttackData
     SDL_FPoint target_pos;
     SDL_FPoint velocity; /**< Initial velocity vector (dx, dy) per second. */
     ObjectType attacker;
+    bool team;
 } Msg_ServerSpawnAttackData;
 
 /**

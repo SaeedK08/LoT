@@ -18,13 +18,19 @@
 // --- Constants ---
 #define MAX_ATTACKS 100 /**< Maximum number of concurrent attacks allowed. */
 
-#define FIREBALL_FRAME_WIDTH 40
-#define FIREBALL_FRAME_HEIGHT 40
-#define FIREBALL_RENDER_WIDTH 33.0f
-#define FIREBALL_RENDER_HEIGHT 39.0f
-#define FIREBALL_SPEED 100.0f    /**< Speed in pixels/second for fireballs. */
-#define FIREBALL_HIT_RANGE 10.0f /**< Collision radius for fireballs. */
-#define FIREBALL_DAMAGE_VALUE 50.0f
+#define PLAYER_ATTACK_SPRITE_FRAME_WIDTH 48
+#define PLAYER_ATTACK_SPRITE_FRAME_HEIGHT 48
+#define PLAYER_ATTACK_RENDER_WIDTH 33.0f
+#define PLAYER_ATTACK_RENDER_HEIGHT 39.0f
+#define ATTACK_SPEED 100.0f           /**< Speed in pixels/second for attacks. */
+#define PLAYER_ATTACK_HIT_RANGE 10.0f /**< Collision radius for attacks. */
+
+#define PLAYER_ATTACK_SPRITE_NUM_FRAMES 10
+#define PLAYER_ATTACK_SPRITE_TIME_PER_FRAME 0.1f
+#define PLAYER_ATTACK_SPRITE_ROW_Y 0.0f
+
+#define PLAYER_ATTACK_DAMAGE_VALUE 25.0f
+#define TOWER_ATTACK_DAMAGE_VALUE 50.0f
 
 // --- Opaque Pointer Type ---
 
@@ -72,7 +78,7 @@ void AttackManager_HandleServerSpawn(AttackManager am, const Msg_ServerSpawnAtta
  * @param type The type of attack requested (from AttackType enum).
  * @param target_pos The world position the attack is aimed at.
  */
-void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, uint8_t owner_id, AttackType type, SDL_FPoint target_pos);
+void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, uint8_t owner_id, Msg_ClientSpawnAttackData data);
 
 /**
  * @brief Handles a destroy message received from the server for an existing attack instance.

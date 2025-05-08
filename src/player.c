@@ -100,6 +100,12 @@ static void handle_local_player_input(PlayerManager pm, AppState *state)
         p->position.y = fmaxf(CLIFF_BOUNDARY, fminf(p->position.y, WATER_BOUNDARY));
     }
 
+    p->rect = (SDL_FRect){
+        p->position.x - PLAYER_WIDTH / 2.0f,
+        p->position.y - PLAYER_HEIGHT / 2.0f,
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT};
+
     // --- Animation State Reset ---
     // If movement state changed (started/stopped moving), reset animation to the beginning.
     if (p->is_moving != was_moving)
@@ -289,7 +295,7 @@ static void player_manager_event_callback(EntityManager manager, AppState *state
         if (distance <= PLAYER_ATTACK_RANGE)
         {
             // Send request to the network client module to inform the server.
-            NetClient_SendSpawnAttackRequest(state->net_client_state, ATTACK_TYPE_FIREBALL, target_world_x, target_world_y);
+            NetClient_SendSpawnAttackRequest(state->net_client_state, PLAYER_ATTACK_TYPE_FIREBALL, target_world_x, target_world_y, local_player->team);
         }
     }
 }
@@ -404,24 +410,33 @@ bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
     }
 
     pm->local_player_client_id = client_id;
-    pm->players[client_id].active = true;
-    pm->players[client_id].is_local = true;
+
+    PlayerInstance *current_player = &pm->players[client_id];
+
     // Set initial state for the newly identified local player.
-    pm->players[client_id].sprite_portion = (SDL_FRect){0.0f, PLAYER_SPRITE_IDLE_ROW_Y, PLAYER_SPRITE_FRAME_WIDTH, PLAYER_SPRITE_FRAME_HEIGHT};
-    pm->players[client_id].flip_mode = SDL_FLIP_NONE;
-    pm->players[client_id].is_moving = false;
-    pm->players[client_id].current_frame = 0;
-    pm->players[client_id].anim_timer = 0.0f;
-    pm->players[client_id].texture = pm->player_texture;
-    pm->players[client_id].current_health = PLAYER_HEALTH_MAX;
+    current_player->active = true;
+    current_player->is_local = true;
+    current_player->sprite_portion = (SDL_FRect){0.0f, PLAYER_SPRITE_IDLE_ROW_Y, PLAYER_SPRITE_FRAME_WIDTH, PLAYER_SPRITE_FRAME_HEIGHT};
+    current_player->flip_mode = SDL_FLIP_NONE;
+    current_player->is_moving = false;
+    current_player->current_frame = 0;
+    current_player->anim_timer = 0.0f;
+    current_player->texture = pm->player_texture;
+    current_player->current_health = PLAYER_HEALTH_MAX;
 
     // Initial spawn position.
-    pm->players[client_id].position = (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
+    current_player->position = (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
 
-    if (pm->players[client_id].team)
+    if (current_player->team)
     {
-        pm->players[client_id].position = (SDL_FPoint){BASE_RED_POS_X + 300, BUILDINGS_POS_Y};
+        current_player->position = (SDL_FPoint){BASE_RED_POS_X + 300, BUILDINGS_POS_Y};
     }
+
+    current_player->rect = (SDL_FRect){
+        current_player->position.x - PLAYER_WIDTH / 2.0f,
+        current_player->position.y - PLAYER_HEIGHT / 2.0f,
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT};
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Local player ID set to %d", client_id);
     return true;
@@ -460,6 +475,12 @@ void PlayerManager_UpdateRemotePlayer(PlayerManager pm, const Msg_PlayerStateDat
     pm->players[id].flip_mode = data->flip_mode;
     // Infer movement state from the received sprite row for animation purposes.
     pm->players[id].is_moving = (fabsf(data->sprite_portion.y - PLAYER_SPRITE_WALK_ROW_Y) < 0.1f);
+
+    pm->players[id].rect = (SDL_FRect){
+        pm->players[id].position.x - PLAYER_WIDTH / 2.0f,
+        pm->players[id].position.y - PLAYER_HEIGHT / 2.0f,
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT};
 }
 
 void PlayerManager_RemovePlayer(PlayerManager pm, uint8_t client_id)
@@ -503,29 +524,6 @@ bool PlayerManager_GetPlayerPosition(PlayerManager pm, uint8_t client_id, SDL_FP
     {
         *out_pos = pm->players[client_id].position;
         return true;
-    }
-    return false;
-}
-
-bool PlayerManager_GetPlayerRect(PlayerManager pm, uint8_t client_id, SDL_FRect *out_rect)
-{
-    if (!pm || !out_rect || client_id >= MAX_CLIENTS)
-    {
-        return false;
-    }
-    PlayerInstance *p = &pm->players[client_id];
-
-    if (p->active)
-    {
-        if (pm->players[pm->local_player_client_id].team != p->team)
-        {
-            *out_rect = (SDL_FRect){
-                .x = p->position.x,
-                .y = p->position.y,
-                .w = PLAYER_WIDTH,
-                .h = PLAYER_HEIGHT};
-            return true;
-        }
     }
     return false;
 }

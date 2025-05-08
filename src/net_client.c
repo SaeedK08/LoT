@@ -591,7 +591,7 @@ bool NetClient_IsConnected(NetClientState nc_state)
     return nc_state && nc_state->network_status == CLIENT_STATUS_CONNECTED;
 }
 
-bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, float target_world_x, float target_world_y)
+bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, float target_world_x, float target_world_y, bool team)
 {
     if (!NetClient_IsConnected(nc_state))
     {
@@ -603,6 +603,7 @@ bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, 
     msg.attack_type = (uint8_t)type;
     msg.target_pos.x = target_world_x;
     msg.target_pos.y = target_world_y;
+    msg.team = team;
 
     return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_ClientSpawnAttackData));
 }

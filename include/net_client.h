@@ -55,7 +55,7 @@ bool NetClient_IsConnected(NetClientState nc_state);
  * @param target_world_y The target world Y coordinate.
  * @return True if the request was sent successfully, false otherwise (e.g., not connected).
  */
-bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, float target_world_x, float target_world_y);
+bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, float target_world_x, float target_world_y, bool team);
 
 bool NetClient_SendDamagePlayerRequest(NetClientState nc_state, int playerIndex, float damageValue);
 /**

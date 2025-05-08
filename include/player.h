@@ -34,7 +34,7 @@
 #define PLAYER_SPRITE_TIME_PER_FRAME 0.1f /**< Duration each animation frame is displayed. */
 
 #define RED_WIZARD_PATH "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png"
-#define BLUE_WIZARD_PATH "./resources/Sprites/Blue_Team/Blue_Wizard/Blue_Wizard_Spritesheet.png"
+#define BLUE_WIZARD_PATH "./resources/Sprites/Blue_Team/Lightning_Wizard/Lightning_Wizard_Spritesheet.png"
 
 // --- Opaque Pointer Type ---
 
@@ -49,13 +49,14 @@ typedef struct PlayerManager_s *PlayerManager;
  */
 typedef struct PlayerInstance
 {
+    SDL_FRect rect;
     SDL_FPoint position;      /**< Current world position (center). */
     SDL_FRect sprite_portion; /**< The source rect defining the current animation frame. */
+    float anim_timer;         /**< Timer used to advance animation frames. */
+    int current_frame;        /**< Index of the current frame within the current animation sequence. */
     SDL_FlipMode flip_mode;   /**< Rendering flip state (horizontal). */
     bool active;              /**< Whether this player slot is currently in use. */
     bool is_local;            /**< True if this is the player controlled by this game instance. */
-    float anim_timer;         /**< Timer used to advance animation frames. */
-    int current_frame;        /**< Index of the current frame within the current animation sequence. */
     bool is_moving;           /**< Tracks if the player is currently considered moving (for animation). */
     bool team;
     SDL_Texture *texture;
@@ -138,8 +139,6 @@ bool PlayerManager_GetLocalPlayerPosition(PlayerManager pm, SDL_FPoint *out_pos)
  * @return True if the player exists, is active, and position was retrieved, false otherwise.
  */
 bool PlayerManager_GetPlayerPosition(PlayerManager pm, uint8_t client_id, SDL_FPoint *out_pos);
-
-bool PlayerManager_GetPlayerRect(PlayerManager pm, uint8_t client_id, SDL_FRect *out_rect);
 
 /**
  * @brief Gets the current state of the local player for network transmission.

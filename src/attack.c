@@ -29,7 +29,10 @@ typedef struct AttackInstance
     float render_height;  /**< Height used for rendering. */
     float hit_range;      /**< Radius or bounding box size used for collision detection. */
     ObjectType attacker;
-
+    SDL_FRect sprite_portion; /**< The source rect defining the current animation frame. */
+    float anim_timer;         /**< Timer used to advance animation frames. */
+    int current_frame;        /**< Index of the current frame within the current animation sequence. */
+    bool team;
     // --- Type-Specific Data ---
     union
     {
@@ -43,10 +46,11 @@ typedef struct AttackInstance
  */
 struct AttackManager_s
 {
-    AttackInstance attacks[MAX_ATTACKS]; /**< Pool of attack instances. */
-    int active_attack_count;             /**< Number of currently active attacks in the pool. */
-    SDL_Texture *fireball_texture;       /**< Shared texture for fireball attacks. */
-    uint32_t next_attack_id;             /**< Counter for assigning unique attack IDs. */
+    AttackInstance attacks[MAX_ATTACKS];  /**< Pool of attack instances. */
+    int active_attack_count;              /**< Number of currently active attacks in the pool. */
+    SDL_Texture *fireball_texture;        /**< Shared texture for fireball attacks. */
+    SDL_Texture *lightning_arrow_texture; /**< Shared texture for lightning arrow attacks. */
+    uint32_t next_attack_id;              /**< Counter for assigning unique attack IDs. */
 };
 
 // --- Static Helper Functions ---
@@ -91,6 +95,28 @@ static int find_inactive_attack_slot(AttackManager am)
 }
 
 /**
+ * @brief Updates the animation frame for a single attack instance.
+ * @param attack Pointer to the AttackInstance to update.
+ * @param delta_time Time since the last frame.
+ */
+static void update_attack_animation(AttackInstance *attack, float delta_time)
+{
+    if (!attack || !attack->active)
+        return;
+
+    attack->anim_timer += delta_time;
+    if (attack->anim_timer >= PLAYER_ATTACK_SPRITE_TIME_PER_FRAME)
+    {
+        attack->anim_timer -= PLAYER_ATTACK_SPRITE_TIME_PER_FRAME;
+        attack->current_frame = (attack->current_frame + 1) % PLAYER_ATTACK_SPRITE_NUM_FRAMES;
+        attack->sprite_portion.x = (float)attack->current_frame * PLAYER_ATTACK_SPRITE_FRAME_WIDTH;
+        attack->sprite_portion.w = PLAYER_ATTACK_SPRITE_FRAME_WIDTH;
+        attack->sprite_portion.h = PLAYER_ATTACK_SPRITE_FRAME_HEIGHT;
+        attack->sprite_portion.y = PLAYER_ATTACK_SPRITE_ROW_Y;
+    }
+}
+
+/**
  * @brief Updates the state of a single active attack instance for one frame.
  * Handles movement, boundary checks, and potential collision/lifetime logic.
  * @param attack Pointer to the AttackInstance to update.
@@ -105,6 +131,8 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
     attack->position.x += attack->velocity.x * state->delta_time;
     attack->position.y += attack->velocity.y * state->delta_time;
 
+    update_attack_animation(attack, state->delta_time);
+
     // --- Boundary Check / Lifetime ---
     if (state->map_state)
     {
@@ -113,7 +141,7 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
 
         float distance_to_target = sqrtf(dist_x * dist_x + dist_y * dist_y);
 
-        if (distance_to_target < FIREBALL_HIT_RANGE)
+        if (distance_to_target < attack->hit_range)
         {
             if (attack->attacker == OBJECT_TYPE_PLAYER)
             {
@@ -126,8 +154,8 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         {
                             if (SDL_PointInRectFloat(&attack->position, &tempTower.rect))
                             {
-                                SDL_Log("Fireball Hit Tower %d", i);
-                                damageTower(*state, i, FIREBALL_DAMAGE_VALUE, true);
+                                SDL_Log("Attack Hit Tower %d", i);
+                                damageTower(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
                             }
                         }
                     }
@@ -139,8 +167,24 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         {
                             if (SDL_PointInRectFloat(&attack->position, &tempBase.rect))
                             {
-                                SDL_Log("Fireball Hit Base %d", i);
-                                damageBase(*state, i, FIREBALL_DAMAGE_VALUE, true);
+                                SDL_Log("Attack Hit Base %d", i);
+                                damageBase(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < MAX_CLIENTS; i++)
+                    {
+                        if (state->player_manager->players[i].active)
+                        {
+                            PlayerInstance tempPlayer = state->player_manager->players[i];
+                            if (tempPlayer.team != state->team)
+                            {
+                                if (SDL_PointInRectFloat(&attack->position, &tempPlayer.rect))
+                                {
+                                    SDL_Log("Attack Hit Player %d", i);
+                                    damagePlayer(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
+                                }
                             }
                         }
                     }
@@ -150,13 +194,16 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
             {
                 for (int i = 0; i < MAX_CLIENTS; i++)
                 {
-                    SDL_FRect tempPlayerRect;
-                    if (PlayerManager_GetPlayerRect(state->player_manager, i, &tempPlayerRect))
+                    if (state->player_manager->players[i].active)
                     {
-                        if (SDL_PointInRectFloat(&attack->position, &tempPlayerRect))
+                        PlayerInstance tempPlayer = state->player_manager->players[i];
+                        if (tempPlayer.team != state->tower_manager->towers[attack->owner_id].team)
                         {
-                            SDL_Log("Fireball Hit Player %d", i);
-                            damagePlayer(*state, i, FIREBALL_DAMAGE_VALUE, true);
+                            if (SDL_PointInRectFloat(&attack->position, &tempPlayer.rect))
+                            {
+                                SDL_Log("Attack Hit Player %d", i);
+                                damagePlayer(*state, i, TOWER_ATTACK_DAMAGE_VALUE, true);
+                            }
                         }
                     }
                 }
@@ -165,15 +212,6 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
             attack->active = false;
             return;
         }
-    }
-
-    // --- Collision Detection ---
-
-    // --- Type-Specific Update Logic ---
-    switch (attack->type)
-    {
-    case ATTACK_TYPE_FIREBALL:
-        break;
     }
 }
 
@@ -201,7 +239,7 @@ static void render_single_attack(const AttackInstance *attack, AppState *state)
 
     SDL_RenderTextureRotated(state->renderer,
                              attack->texture,
-                             NULL,
+                             &attack->sprite_portion,
                              &dst_rect,
                              attack->angle_deg,
                              NULL,
@@ -275,6 +313,12 @@ static void Internal_AttackManagerCleanup(AttackManager am)
         SDL_DestroyTexture(am->fireball_texture);
         am->fireball_texture = NULL;
     }
+
+    if (am->lightning_arrow_texture)
+    {
+        SDL_DestroyTexture(am->lightning_arrow_texture);
+        am->lightning_arrow_texture = NULL;
+    }
 }
 
 /**
@@ -341,7 +385,7 @@ AttackManager AttackManager_Init(AppState *state)
     am->next_attack_id = 1;
 
     // --- Load Resources ---
-    const char fireball_path[] = "./resources/Sprites/Red_Team/Fire_Wizard/Charge.png";
+    const char fireball_path[] = "./resources/Sprites/Red_Team/Fire_Wizard/Fireball_Charge.png";
     am->fireball_texture = IMG_LoadTexture(state->renderer, fireball_path);
     if (!am->fireball_texture)
     {
@@ -350,6 +394,16 @@ AttackManager AttackManager_Init(AppState *state)
         return NULL;
     }
     SDL_SetTextureScaleMode(am->fireball_texture, SDL_SCALEMODE_NEAREST);
+
+    const char lightning_arrow_path[] = "./resources/Sprites/Blue_Team/Lightning_Wizard/Lightning_Arrow_Charge.png";
+    am->lightning_arrow_texture = IMG_LoadTexture(state->renderer, lightning_arrow_path);
+    if (!am->lightning_arrow_texture)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Attack Init] Failed load texture '%s': %s", lightning_arrow_path, SDL_GetError());
+        SDL_free(am);
+        return NULL;
+    }
+    SDL_SetTextureScaleMode(am->lightning_arrow_texture, SDL_SCALEMODE_NEAREST);
 
     // --- Register with EntityManager ---
     EntityFunctions attack_funcs = {
@@ -385,6 +439,12 @@ void AttackManager_Destroy(AttackManager am)
         SDL_free(am);
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "AttackManager state container destroyed.");
     }
+    if (am)
+    {
+        am->lightning_arrow_texture = NULL;
+        SDL_free(am);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "AttackManager state container destroyed.");
+    }
 }
 
 /**
@@ -415,29 +475,39 @@ void AttackManager_HandleServerSpawn(AttackManager am, const Msg_ServerSpawnAtta
     attack->target = data->target_pos;
     attack->velocity = data->velocity;
     attack->attacker = data->attacker;
+    attack->team = data->team;
 
     // --- Populate Type-Specific Data ---
-    switch (attack->type)
-    {
-    case ATTACK_TYPE_FIREBALL:
-        attack->texture = am->fireball_texture;
-        if (!attack->texture)
-        {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Fireball texture missing for attack %u", attack->id);
-            attack->active = false;
-            return;
-        }
-        attack->render_width = FIREBALL_RENDER_WIDTH;
-        attack->render_height = FIREBALL_RENDER_HEIGHT;
-        attack->hit_range = FIREBALL_HIT_RANGE;
-        attack->angle_deg = atan2f(attack->velocity.y, attack->velocity.x) * (180.0f / (float)M_PI);
-        break;
+    // switch (attack->attacker)
+    // {
+    // case OBJECT_TYPE_PLAYER:
 
-    default:
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Attempted to spawn unknown attack type via network: %u", (unsigned int)attack->type);
+    attack->texture = attack->team ? am->fireball_texture : am->lightning_arrow_texture;
+    if (!attack->texture)
+    {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Attack texture missing for attack %u", attack->id);
         attack->active = false;
         return;
     }
+    attack->render_width = PLAYER_ATTACK_RENDER_WIDTH;
+    attack->render_height = PLAYER_ATTACK_RENDER_HEIGHT;
+    attack->hit_range = PLAYER_ATTACK_HIT_RANGE;
+    attack->angle_deg = atan2f(attack->velocity.y, attack->velocity.x) * (180.0f / (float)M_PI);
+
+    attack->current_frame = 0;
+    attack->anim_timer = 0.0f;
+    attack->sprite_portion = (SDL_FRect){
+        0.0f,
+        PLAYER_ATTACK_SPRITE_ROW_Y,
+        PLAYER_ATTACK_SPRITE_FRAME_WIDTH,
+        PLAYER_ATTACK_SPRITE_FRAME_HEIGHT};
+    //     break;
+
+    // default:
+    //     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Attempted to spawn unknown attack type via network: %u", (unsigned int)attack->type);
+    //     attack->active = false;
+    //     return;
+    // }
 
     am->active_attack_count++;
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Spawned attack ID %u (type %u) at index %d. Active count: %d",
@@ -454,7 +524,7 @@ void AttackManager_HandleServerSpawn(AttackManager am, const Msg_ServerSpawnAtta
  * @param type The type of attack requested (from AttackType enum).
  * @param target_pos The world position the attack is aimed at.
  */
-void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, uint8_t owner_id, AttackType type, SDL_FPoint target_pos)
+void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, uint8_t owner_id, Msg_ClientSpawnAttackData data)
 {
     if (!am || !state || !state->player_manager || !state->net_server_state)
     {
@@ -475,21 +545,11 @@ void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, u
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack Handle Req] Start position for client %u: (%.1f, %.1f)", owner_id, start_pos.x, start_pos.y);
 
     // --- 3. Calculate Velocity ---
-    float dx = target_pos.x - start_pos.x;
-    float dy = target_pos.y - start_pos.y;
+    float dx = data.target_pos.x - start_pos.x;
+    float dy = data.target_pos.y - start_pos.y;
     float len = sqrtf(dx * dx + dy * dy);
     SDL_FPoint velocity = {0.0f, 0.0f};
-    float speed = 0.0f;
-
-    switch (type)
-    {
-    case ATTACK_TYPE_FIREBALL:
-        speed = FIREBALL_SPEED;
-        break;
-    default:
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Attack Handle Req] Unknown attack type %u for velocity calculation", (unsigned int)type);
-        return;
-    }
+    float speed = ATTACK_SPEED;
 
     // Avoid division by zero or near-zero if start and target positions are the same.
     if (len > 0.01f)
@@ -510,18 +570,19 @@ void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, u
     // --- 5. Prepare Spawn Message ---
     Msg_ServerSpawnAttackData spawn_msg;
     spawn_msg.message_type = MSG_TYPE_S_SPAWN_ATTACK;
-    spawn_msg.attack_type = (uint8_t)type;
+    spawn_msg.attack_type = (uint8_t)data.attack_type;
     spawn_msg.attack_id = new_attack_id;
     spawn_msg.owner_id = owner_id;
     spawn_msg.start_pos = start_pos;
-    spawn_msg.target_pos = target_pos;
+    spawn_msg.target_pos = data.target_pos;
     spawn_msg.velocity = velocity;
     spawn_msg.attacker = OBJECT_TYPE_PLAYER;
+    spawn_msg.team = data.team;
 
     // --- 6. Broadcast via NetServer ---
     NetServer_BroadcastMessage(state->net_server_state, &spawn_msg, sizeof(Msg_ServerSpawnAttackData), -1);
 
-    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack Handle Req] Client %u requested spawn type %u, broadcasting attack ID %u", (unsigned int)owner_id, (unsigned int)type, new_attack_id);
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack Handle Req] Client %u requested spawn type %u, broadcasting attack ID %u", (unsigned int)owner_id, (unsigned int)data.attack_type, new_attack_id);
 
     // --- 7. Spawn Locally on Server Immediately ---
     // If running as server, spawn the attack in the server's own simulation
@@ -577,17 +638,7 @@ void AttackManager_ServerSpawnTowerAttack(AttackManager am, AppState *state, Att
     float dy = target_pos.y - start_pos.y;
     float len = sqrtf(dx * dx + dy * dy);
     SDL_FPoint velocity = {0.0f, 0.0f};
-    float speed = 0.0f;
-
-    switch (type)
-    {
-    case ATTACK_TYPE_FIREBALL:
-        speed = FIREBALL_SPEED;
-        break;
-    default:
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Attack Spawn Tower] Unknown attack type %u for velocity calculation", (unsigned int)type);
-        return;
-    }
+    float speed = ATTACK_SPEED;
 
     // Avoid division by zero or near-zero if start and target positions are the same.
     if (len > 0.01f)
@@ -615,6 +666,7 @@ void AttackManager_ServerSpawnTowerAttack(AttackManager am, AppState *state, Att
     spawn_msg.target_pos = target_pos;
     spawn_msg.velocity = velocity;
     spawn_msg.attacker = OBJECT_TYPE_TOWER;
+    spawn_msg.team = firingTower->team;
 
     // --- 6. Broadcast via NetServer ---
     NetServer_BroadcastMessage(state->net_server_state, &spawn_msg, sizeof(Msg_ServerSpawnAttackData), -1);
