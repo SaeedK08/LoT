@@ -1,199 +1,317 @@
-#define CUTE_TILED_IMPLEMENTATION
 #include "../include/map.h"
 
-// --- Module Variables ---
+#define CUTE_TILED_IMPLEMENTATION
+#include "../include/cute_tiled.h"
 
-static cute_tiled_map_t *map = NULL;
-static Texture *texture = NULL;
-
-// --- Static Helper Functions ---
+// --- Internal Structures ---
 
 /**
- * @brief Frees all resources associated with the map, including Tiled data and textures.
- * @return void
+ * @brief Internal structure representing a loaded tileset texture and its metadata.
+ * Used within the MapState.
  */
-static void cleanup()
+typedef struct TilesetTexture
 {
-  if (texture)
-  {
-    Texture *current_texture = texture;
-    Texture *next_texture = NULL;
+  SDL_Texture *texture;
+  int firstgid;
+  int tilecount;
+  int tileset_width_px;  // Width of the tileset image in pixels
+  int tileset_height_px; // Height of the tileset image in pixels
+  int columns;           // Number of tile columns in the tileset image
+  struct TilesetTexture *next;
+} TilesetTexture;
 
-    while (current_texture)
+/**
+ * @brief Internal state for the Map module.
+ */
+struct MapState_s
+{
+  cute_tiled_map_t *map_data;       /**< Parsed Tiled map data. */
+  TilesetTexture *tileset_textures; /**< Linked list of loaded tileset textures. */
+};
+
+// --- Static Callback Functions (for EntityManager) ---
+
+/**
+ * @brief Internal function to render all visible tile layers of the map.
+ * @param map_state The internal state of the map module.
+ * @param state The main application state.
+ */
+static void Internal_MapRenderImplementation(MapState map_state, AppState *state)
+{
+  if (!map_state || !map_state->map_data || !map_state->tileset_textures || !state->camera_state)
+  {
+    return;
+  }
+
+  cute_tiled_map_t *map = map_state->map_data;
+  CameraState camera = state->camera_state;
+  float cam_x = Camera_GetX(camera);
+  float cam_y = Camera_GetY(camera);
+  float cam_w = Camera_GetWidth(camera);
+  float cam_h = Camera_GetHeight(camera);
+
+  // Determine the range of tiles visible on screen
+  int start_col = (int)floorf(cam_x / map->tilewidth);
+  int end_col = (int)ceilf((cam_x + cam_w) / map->tilewidth);
+  int start_row = (int)floorf(cam_y / map->tileheight);
+  int end_row = (int)ceilf((cam_y + cam_h) / map->tileheight);
+
+  // Clamp tile range to map boundaries
+  start_col = CLAMP(start_col, 0, map->width - 1);
+  end_col = CLAMP(end_col, 0, map->width);
+  start_row = CLAMP(start_row, 0, map->height - 1);
+  end_row = CLAMP(end_row, 0, map->height);
+
+  cute_tiled_layer_t *layer = map->layers;
+  while (layer)
+  {
+    // Only render visible tile layers
+    if (strcmp(layer->type.ptr, "tilelayer") == 0 && layer->visible && layer->data)
     {
-      next_texture = current_texture->next;
-      if (current_texture->texture)
+      for (int y = start_row; y < end_row; ++y)
       {
-        SDL_DestroyTexture(current_texture->texture);
-      }
-      SDL_free(current_texture);
-      current_texture = next_texture;
-    }
-    texture = NULL;
-  }
+        for (int x = start_col; x < end_col; ++x)
+        {
+          int tile_index = y * map->width + x;
+          int gid = layer->data[tile_index];
 
-  if (map)
-  {
-    cute_tiled_free_map(map);
-    map = NULL;
+          if (gid == 0)
+            continue; // Skip empty tiles
+
+          // Find the correct tileset texture for the given GID
+          TilesetTexture *tex_node = map_state->tileset_textures;
+          TilesetTexture *tileset_to_use = NULL;
+          while (tex_node)
+          {
+            if (gid >= tex_node->firstgid && gid < tex_node->firstgid + tex_node->tilecount)
+            {
+              tileset_to_use = tex_node;
+              break;
+            }
+            tex_node = tex_node->next;
+          }
+
+          if (!tileset_to_use || !tileset_to_use->texture)
+            continue; // Skip if tileset not found
+
+          // Calculate source rect from the tileset image
+          int local_id = gid - tileset_to_use->firstgid;
+          SDL_FRect src_rect = {
+              .x = (float)((local_id % tileset_to_use->columns) * map->tilewidth),
+              .y = (float)((local_id / tileset_to_use->columns) * map->tileheight),
+              .w = (float)map->tilewidth,
+              .h = (float)map->tileheight};
+
+          // Calculate destination rect on the screen, adjusted for camera position
+          SDL_FRect dst_rect = {
+              .x = (float)(x * map->tilewidth) - cam_x,
+              .y = (float)(y * map->tileheight) - cam_y,
+              .w = (float)map->tilewidth,
+              .h = (float)map->tileheight};
+
+          SDL_RenderTexture(state->renderer, tileset_to_use->texture, &src_rect, &dst_rect);
+        }
+      }
+    }
+    layer = layer->next;
   }
-  SDL_Log("Map has been cleaned up.");
 }
 
 /**
- * @brief Renders all visible tile layers of the map, adjusted by the camera position.
- * @param state The application state containing the renderer.
- * @return void
+ * @brief Internal function to clean up map resources.
+ * @param map_state The internal state of the map module.
  */
-static void render(AppState *state)
+static void Internal_MapCleanupImplementation(MapState map_state)
 {
-  // Don't render if map or textures aren't loaded
-  if (!map || !texture)
+  if (!map_state)
     return;
 
-  cute_tiled_layer_t *temp_layer = map->layers;
-
-  while (temp_layer)
+  // Free the linked list of TilesetTexture structs and associated SDL_Textures
+  TilesetTexture *current_texture = map_state->tileset_textures;
+  TilesetTexture *next_texture = NULL;
+  while (current_texture)
   {
-    // Skip non-tile layers or invisible layers
-    if (!temp_layer->data || !temp_layer->visible)
+    next_texture = current_texture->next;
+    if (current_texture->texture)
     {
-      temp_layer = temp_layer->next;
-      continue;
+      SDL_DestroyTexture(current_texture->texture);
     }
+    SDL_free(current_texture);
+    current_texture = next_texture;
+  }
+  map_state->tileset_textures = NULL;
 
-    // --- Render Layer Tiles ---
-    for (int i = 0; i < map->height; i++)
-    {
-      for (int j = 0; j < map->width; j++)
-      {
-        int tile_id = temp_layer->data[i * map->width + j];
-        // Skip empty tiles (GID 0)
-        if (tile_id == 0)
-          continue;
+  // Free the Tiled map data
+  if (map_state->map_data)
+  {
+    cute_tiled_free_map(map_state->map_data);
+    map_state->map_data = NULL;
+  }
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Map resources cleaned up.");
+}
 
-        Texture *temp_texture_node = texture;
-        Texture *texture_to_use = NULL;
-        while (temp_texture_node)
-        {
-          // Use < for upper bound
-          if (tile_id >= temp_texture_node->firstgid &&
-              tile_id < temp_texture_node->firstgid + temp_texture_node->tilecount)
-          {
-            texture_to_use = temp_texture_node;
-            break;
-          }
-          temp_texture_node = temp_texture_node->next;
-        }
+/**
+ * @brief Wrapper function conforming to EntityFunctions.render signature.
+ * @param manager The EntityManager instance.
+ * @param state Pointer to the main AppState.
+ */
+static void map_render_callback(EntityManager manager, AppState *state)
+{
+  (void)manager; // Manager instance is not used in this specific implementation
+  Internal_MapRenderImplementation(state->map_state, state);
+}
 
-        // Skip if no texture found or texture failed to load
-        if (!texture_to_use || !texture_to_use->texture)
-        {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[%s] No texture found or loaded for GID %d.", __func__, tile_id);
-          continue;
-        }
-
-        int tileset_columns = texture_to_use->tileset_width / map->tilewidth;
-        int local_tile_id = tile_id - texture_to_use->firstgid; // ID relative to tileset
-        SDL_FRect src = {
-            (float)((local_tile_id % tileset_columns) * map->tilewidth),
-            (float)((local_tile_id / tileset_columns) * map->tileheight),
-            (float)map->tilewidth,
-            (float)map->tileheight};
-
-        SDL_FRect dst = {
-            (float)(j * map->tilewidth - camera.x),
-            (float)(i * map->tileheight - camera.y),
-            (float)map->tilewidth,
-            (float)map->tileheight};
-
-        SDL_RenderTexture(state->renderer, texture_to_use->texture, &src, &dst);
-      }
-    }
-    temp_layer = temp_layer->next;
+/**
+ * @brief Wrapper function conforming to EntityFunctions.cleanup signature.
+ * @param manager The EntityManager instance.
+ * @param state Pointer to the main AppState.
+ */
+static void map_cleanup_callback(EntityManager manager, AppState *state)
+{
+  (void)manager; // Manager instance is not used in this specific implementation
+  Internal_MapCleanupImplementation(state->map_state);
+  if (state)
+  {
+    state->map_state = NULL; // Indicate cleanup happened
   }
 }
 
 // --- Public API Function Implementations ---
 
-SDL_AppResult init_map(SDL_Renderer *renderer)
+MapState Map_Init(AppState *state)
 {
-  // --- Load Tiled Map ---
-  const char map_path[] = "./resources/Map/tiledMap.json";
-  map = cute_tiled_load_map_from_file(map_path, NULL);
-  if (!map)
+  if (!state || !state->renderer || !state->entity_manager)
   {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to load map '%s': %s", __func__, map_path, cute_tiled_error_reason);
-    return SDL_APP_FAILURE;
+    SDL_SetError("Invalid AppState or missing renderer/entity_manager for Map_Init");
+    return NULL;
+  }
+
+  const char map_path[] = "./resources/Map/tiledMap.json";
+
+  // --- Allocate State ---
+  MapState map_state = (MapState)SDL_calloc(1, sizeof(struct MapState_s));
+  if (!map_state)
+  {
+    SDL_OutOfMemory();
+    return NULL;
+  }
+
+  // --- Load Tiled Map Data ---
+  map_state->map_data = cute_tiled_load_map_from_file(map_path, NULL);
+  if (!map_state->map_data)
+  {
+    SDL_SetError("Failed to load map '%s': %s", map_path, cute_tiled_error_reason);
+    SDL_free(map_state);
+    return NULL;
   }
 
   // --- Load Tileset Textures ---
-  cute_tiled_tileset_t *current_tileset = map->tilesets;
-  Texture *current_texture_node = NULL;
-  Texture *head_texture_node = NULL; // Keep track of the head for cleanup on failure
+  cute_tiled_tileset_t *tiled_tileset = map_state->map_data->tilesets;
+  TilesetTexture *list_head = NULL;
+  TilesetTexture *list_tail = NULL;
 
-  while (current_tileset)
+  while (tiled_tileset)
   {
-    Texture *new_node = SDL_malloc(sizeof(Texture));
+    TilesetTexture *new_node = (TilesetTexture *)SDL_malloc(sizeof(TilesetTexture));
     if (!new_node)
     {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to allocate memory for texture node.", __func__);
-      texture = head_texture_node;
-      cleanup();
-      return SDL_APP_FAILURE;
+      SDL_OutOfMemory();
+      Internal_MapCleanupImplementation(map_state); // Cleanup already loaded stuff
+      SDL_free(map_state);
+      return NULL;
+    }
+    memset(new_node, 0, sizeof(TilesetTexture));
+
+    new_node->firstgid = tiled_tileset->firstgid;
+    new_node->tilecount = tiled_tileset->tilecount;
+    new_node->tileset_width_px = tiled_tileset->imagewidth;
+    new_node->tileset_height_px = tiled_tileset->imageheight;
+    new_node->columns = tiled_tileset->columns;
+    new_node->next = NULL;
+
+    const char *image_path = tiled_tileset->image.ptr;
+    if (!image_path)
+    {
+      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Map Init] Tileset (gid %d) has no image path.", tiled_tileset->firstgid);
+      SDL_free(new_node);
+      Internal_MapCleanupImplementation(map_state); // Cleanup
+      SDL_free(map_state);
+      return NULL;
     }
 
-    memset(new_node, 0, sizeof(Texture));
-    new_node->firstgid = current_tileset->firstgid;
-    new_node->tilecount = current_tileset->tilecount;
-    new_node->tileset_width = current_tileset->imagewidth;
-    new_node->tileset_height = current_tileset->imageheight;
-
-    const char *image_path = current_tileset->image.ptr;
-
-    new_node->texture = IMG_LoadTexture(renderer, image_path);
+    new_node->texture = IMG_LoadTexture(state->renderer, image_path);
     if (!new_node->texture)
     {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[%s] Failed to load texture '%s': %s", __func__, image_path, SDL_GetError());
+      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Map Init] Failed to load texture '%s': %s", image_path, SDL_GetError());
       SDL_free(new_node);
-      texture = head_texture_node;
-      cleanup();
-      return SDL_APP_FAILURE;
+      Internal_MapCleanupImplementation(map_state); // Cleanup
+      SDL_free(map_state);
+      return NULL;
+    }
+    SDL_SetTextureScaleMode(new_node->texture, SDL_SCALEMODE_NEAREST);
+
+    // Append to linked list
+    if (!list_head)
+    {
+      list_head = new_node;
     }
     else
     {
-      // Use nearest-neighbor scaling for pixel art
-      SDL_SetTextureScaleMode(new_node->texture, SDL_SCALEMODE_NEAREST);
+      list_tail->next = new_node;
     }
+    list_tail = new_node;
 
-    if (!head_texture_node)
-    {
-      head_texture_node = new_node;
-      current_texture_node = head_texture_node;
-    }
-    else
-    {
-      current_texture_node->next = new_node;
-      current_texture_node = new_node;
-    }
-
-    current_tileset = current_tileset->next;
+    tiled_tileset = tiled_tileset->next;
   }
+  map_state->tileset_textures = list_head;
 
-  texture = head_texture_node;
-
-  // --- Create Map Entity ---
-  Entity map_e = {
+  // --- Register with EntityManager ---
+  EntityFunctions map_entity_funcs = {
       .name = "map",
-      .render = render,
-      .cleanup = cleanup};
+      .render = map_render_callback,
+      .cleanup = map_cleanup_callback,
+      .update = NULL,
+      .handle_events = NULL};
 
-  if (create_entity(map_e) == SDL_APP_FAILURE)
+  if (!EntityManager_Add(state->entity_manager, &map_entity_funcs))
   {
-    // Cleanup map resources if entity creation failed
-    cleanup();
-    return SDL_APP_FAILURE;
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Map Init] Failed to add map entity to manager: %s", SDL_GetError());
+    Internal_MapCleanupImplementation(map_state); // Cleanup map resources
+    SDL_free(map_state);                          // Free the state struct itself
+    return NULL;
   }
 
-  return SDL_APP_SUCCESS;
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Map module initialized and entity registered.");
+  return map_state;
+}
+
+void Map_Destroy(MapState map_state)
+{
+  // Cleanup callback handles texture and map data destruction.
+  if (map_state)
+  {
+    // Prevent dangling pointers after cleanup callback potentially ran via EntityManager
+    map_state->map_data = NULL;
+    map_state->tileset_textures = NULL;
+    SDL_free(map_state);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "MapState container destroyed.");
+  }
+}
+
+int Map_GetWidthPixels(MapState map_state)
+{
+  if (map_state && map_state->map_data)
+  {
+    return map_state->map_data->width * map_state->map_data->tilewidth;
+  }
+  return 0;
+}
+
+int Map_GetHeightPixels(MapState map_state)
+{
+  if (map_state && map_state->map_data)
+  {
+    return map_state->map_data->height * map_state->map_data->tileheight;
+  }
+  return 0;
 }

@@ -1,21 +1,26 @@
 #include "../include/iterate.h"
 
-#define TARGET_FPS 144
-#define TARGET_FRAME_TIME (1000 / TARGET_FPS)
-
 void app_wait_for_next_frame(void *appstate)
 {
   AppState *state = (AppState *)appstate;
 
-  Uint64 frame_time = SDL_GetTicks() - state->current_tick;
-  if (frame_time < TARGET_FRAME_TIME)
-    SDL_Delay(TARGET_FRAME_TIME - frame_time);
+  // Calculate time spent on the current frame
+  Uint64 frame_duration_ms = SDL_GetTicks() - state->current_tick;
+
+  // Delay if the frame finished faster than the target time
+  if (frame_duration_ms < TARGET_FRAME_TIME_MS)
+  {
+    SDL_Delay(TARGET_FRAME_TIME_MS - frame_duration_ms);
+  }
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
-  app_update(appstate);
-  app_render(appstate);
-  app_wait_for_next_frame(appstate);
-  return SDL_APP_CONTINUE;
+  AppState *state = (AppState *)appstate;
+
+  app_update(state);
+  app_render(state);
+  app_wait_for_next_frame(state);
+
+  return state->quit_requested ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
 }

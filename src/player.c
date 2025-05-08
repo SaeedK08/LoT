@@ -1,462 +1,571 @@
 #include "../include/player.h"
 
-struct Player
-{
-  SDL_FPoint position;
-  SDL_Texture *texture;
-  SDL_Texture *blue_texture;
-  SDL_Texture *red_texture;
-  SDL_FRect sprite_portion;
-  int movement_speed;
-  SDL_FlipMode flip_mode;
-  bool is_local_player;
-  int client_index;
-  // --- Animation state ---
-  float anim_timer;
-  int current_frame;
-  bool is_moving;
-  bool team;
-};
+// --- Internal Structures ---
 
-// --- Static Variables ---
-Player *players_array[MAX_CLIENTS]; // Global array holding pointers to player structs, indexed by client ID.
-static int local_player_index = -1; // Index of the player controlled by this client instance, -1 if none.
-// --- Static Helper Function Definitions ---
+// --- Static Helper Functions ---
 
 /**
- * @brief Cleans up resources associated with the local player entity.
- * @param void
- * @return void
+ * @brief Handles input processing (movement) for the local player.
+ * Reads keyboard state, calculates new position based on input and delta time,
+ * updates movement state, and clamps position to map boundaries.
+ * @param pm The PlayerManager instance.
+ * @param state The main application state.
  */
-static void cleanup(void)
+static void handle_local_player_input(PlayerManager pm, AppState *state)
 {
-  // Only cleanup if the local player was actually initialized.
-  if (local_player_index != -1 && players_array[local_player_index] != NULL)
-  {
-    // Destroy both team textures if they were loaded.
-    if (players_array[local_player_index]->blue_texture)
+    if (!pm || pm->local_player_client_id < 0 || !state)
+        return;
+
+    PlayerInstance *p = &pm->players[pm->local_player_client_id];
+    const bool *keyboard_state = SDL_GetKeyboardState(NULL);
+    bool was_moving = p->is_moving; // Track previous state to detect changes for animation reset.
+    p->is_moving = false;
+
+    float move_x = 0.0f;
+    float move_y = 0.0f;
+
+    // --- Read Input ---
+    // Accumulate input direction components.
+    if (keyboard_state[SDL_SCANCODE_W])
     {
-      SDL_DestroyTexture(players_array[local_player_index]->blue_texture);
-      players_array[local_player_index]->blue_texture = NULL;
+        move_y -= 1.0f;
+        p->is_moving = true;
     }
-    if (players_array[local_player_index]->red_texture)
+    if (keyboard_state[SDL_SCANCODE_S])
     {
-      SDL_DestroyTexture(players_array[local_player_index]->red_texture);
-      players_array[local_player_index]->red_texture = NULL;
+        move_y += 1.0f;
+        p->is_moving = true;
     }
-    // The primary 'texture' pointer is just a reference to one of the above, no need to double-free.
-    players_array[local_player_index]->texture = NULL;
-
-    // Free the player struct itself.
-    SDL_free(players_array[local_player_index]);
-    players_array[local_player_index] = NULL; // Clear the pointer in the array.
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Player %d] Cleaned up.", local_player_index);
-  }
-  local_player_index = -1; // Reset the local player index.
-}
-
-/**
- * @brief Handles input events specifically for the local player.
- * @param appstate Pointer to the global application state.
- * @param event Pointer to the SDL_Event being processed.
- * @return void
- */
-static void handle_events(void *appstate, SDL_Event *event)
-{
-  // Ignore events if the local player isn't initialized.
-  if (local_player_index == -1 || players_array[local_player_index] == NULL)
-    return;
-
-  AppState *pState = (AppState *)(appstate);
-  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT)
-  {
-    activate_fireballs(event->button.x, event->button.y, players_array[local_player_index]->team, true, pState->window);
-  }
-}
-
-/**
- * @brief Updates the local player's position based on current keyboard state.
- * @param p Pointer to the local Player struct.
- * @param delta_time Time elapsed since the last frame in seconds.
- * @return void
- */
-static void handle_local_player_input(Player *p, float delta_time)
-{
-  const bool *keyboard_state = SDL_GetKeyboardState(NULL);
-  p->is_moving = false; // Reset movement flag each frame.
-
-  SDL_FPoint tempPos = (SDL_FPoint){p->position.x, p->position.y};
-
-  // --- Vertical Movement ---
-  if (keyboard_state[SDL_SCANCODE_W])
-  {
-    tempPos.y -= p->movement_speed * delta_time;
-    p->is_moving = true;
-  }
-  if (keyboard_state[SDL_SCANCODE_S])
-  {
-    tempPos.y += p->movement_speed * delta_time;
-    p->is_moving = true;
-  }
-  // --- Horizontal Movement & Flipping ---
-  if (keyboard_state[SDL_SCANCODE_A])
-  {
-    tempPos.x -= p->movement_speed * delta_time;
-    p->flip_mode = SDL_FLIP_HORIZONTAL; // Face left when moving left.
-    p->is_moving = true;
-  }
-  if (keyboard_state[SDL_SCANCODE_D])
-  {
-    tempPos.x += p->movement_speed * delta_time;
-    p->flip_mode = SDL_FLIP_NONE; // Face right when moving right.
-    p->is_moving = true;
-  }
-
-  // Create Rect of the player
-  SDL_FRect player_bounds = {
-      tempPos.x - PLAYER_WIDTH / 2.0f,
-      tempPos.y - PLAYER_HEIGHT / 2.0f,
-      PLAYER_WIDTH,
-      PLAYER_HEIGHT};
-
-  bool collision = false;
-
-  // Check if the player rect intersects base or tower rect
-  for (int i = 0; i < MAX_TOWERS; i++)
-  {
-    SDL_FRect tower_bounds = getTowerPos(i);
-    if (SDL_HasRectIntersectionFloat(&player_bounds, &tower_bounds))
+    if (keyboard_state[SDL_SCANCODE_A])
     {
-      collision = true;
-    };
-  }
-  for (int i = 0; i < MAX_BASES; i++)
-  {
-    SDL_FRect tower_bounds = getBasePos(i);
-    if (SDL_HasRectIntersectionFloat(&player_bounds, &tower_bounds))
-    {
-      collision = true;
-    };
-  }
-
-  if (!collision) // If player doesn't intersect, update position
-  {
-    p->position.y = tempPos.y;
-    p->position.x = tempPos.x;
-  }
-}
-
-/**
- * @brief Clamps the local player's position within the defined map boundaries.
- * @param p Pointer to the local Player struct.
- * @return void
- */
-static void update_local_player_position(Player *p)
-{
-  // Prevent player from moving outside the map horizontally.
-  p->position.x = fmaxf(PLAYER_WIDTH / 2.0f, fminf(p->position.x, MAP_WIDTH - PLAYER_WIDTH / 2.0f));
-  // Prevent player from moving outside the map vertically.
-  p->position.y = fmaxf(CLIFF_BOUNDARY, fminf(p->position.y, WATER_BOUNDARY));
-}
-
-/**
- * @brief Updates the local player's animation frame based on movement state.
- * @param p Pointer to the local Player struct.
- * @param delta_time Time elapsed since the last frame in seconds.
- * @return void
- */
-static void update_local_player_animation(Player *p, float delta_time)
-{
-  // Determine which row of the spritesheet to use based on movement.
-  float target_row_y = p->is_moving ? WALK_ROW_Y : IDLE_ROW_Y;
-  int num_frames = p->is_moving ? NUM_WALK_FRAMES : NUM_IDLE_FRAMES;
-
-  // Reset animation if the movement state (and thus target row) changes.
-  if (p->sprite_portion.y != target_row_y)
-  {
-    p->current_frame = 0;
-    p->anim_timer = 0.0f;
-    p->sprite_portion.y = target_row_y;
-  }
-
-  // Advance animation timer.
-  p->anim_timer += delta_time;
-  // If enough time has passed, move to the next frame.
-  if (p->anim_timer >= TIME_PER_FRAME)
-  {
-    p->anim_timer -= TIME_PER_FRAME;                        // Subtract interval, don't just reset to 0.
-    p->current_frame = (p->current_frame + 1) % num_frames; // Loop back to frame 0 after the last frame.
-  }
-
-  // Update the source rectangle for rendering based on the current frame.
-  p->sprite_portion.x = p->current_frame * FRAME_WIDTH;
-  p->sprite_portion.w = FRAME_WIDTH;
-  p->sprite_portion.h = FRAME_HEIGHT;
-}
-
-/**
- * @brief Updates the state of the local player entity.
- * @param state Pointer to the global application state.
- * @return void
- */
-static void update(AppState *state)
-{
-  // Only update if the local player is initialized.
-  if (local_player_index == -1 || players_array[local_player_index] == NULL)
-    return;
-
-  Player *local_player = players_array[local_player_index];
-
-  // --- Process Local Player Updates ---
-  handle_local_player_input(local_player, state->delta_time);
-  update_local_player_position(local_player);
-  update_local_player_animation(local_player, state->delta_time);
-}
-
-/**
- * @brief Renders the local player's sprite.
- * @param state Pointer to the global application state.
- * @param p Pointer to the local Player struct.
- * @return void
- */
-static void render_local_player(AppState *state, Player *p)
-{
-  // Ensure player and texture are valid before rendering.
-  if (!p || !p->texture)
-    return;
-
-  // Calculate screen coordinates by subtracting camera position and offsetting by half player size for centering.
-  float screen_x = p->position.x - camera.x - PLAYER_WIDTH / 2.0f;
-  float screen_y = p->position.y - camera.y - PLAYER_HEIGHT / 2.0f;
-  SDL_FRect player_dest_rect = {screen_x, screen_y, PLAYER_WIDTH, PLAYER_HEIGHT};
-
-  // Render the current frame of the player sprite with appropriate flipping.
-  SDL_RenderTextureRotated(state->renderer,
-                           p->texture,
-                           &p->sprite_portion, // Source rect from animation state.
-                           &player_dest_rect,  // Destination rect on screen.
-                           0.0,                // No rotation angle.
-                           NULL,               // Use center point for rotation (if any).
-                           p->flip_mode);      // Horizontal flip state.
-}
-
-/**
- * @brief Renders all active remote players based on received network state.
- * @param state Pointer to the global application state.
- * @return void
- */
-static void render_remote_players(AppState *state)
-{
-  // Need the local player's struct to access the loaded textures.
-  if (local_player_index == -1 || players_array[local_player_index] == NULL)
-  {
-    return;
-  }
-  // Get pointers to both team textures loaded by the local client.
-  SDL_Texture *blue_texture = players_array[local_player_index]->blue_texture;
-  SDL_Texture *red_texture = players_array[local_player_index]->red_texture;
-
-  // --- Iterate Through Remote Player Slots ---
-  for (int i = 0; i < MAX_CLIENTS; ++i)
-  {
-    // Skip rendering the local player and any inactive slots.
-    if (i == local_player_index || !remotePlayers[i].active)
-      continue;
-
-    // --- Select Texture Based on Remote Player's Team ---
-    SDL_Texture *texture_to_use = NULL;
-    // Use the team ID received over the network to choose which locally loaded texture to use.
-    if (remotePlayers[i].team == BLUE_TEAM && blue_texture)
-    {
-      texture_to_use = blue_texture;
+        move_x -= 1.0f;
+        p->flip_mode = SDL_FLIP_HORIZONTAL; // Face left when moving left.
+        p->is_moving = true;
     }
-    else if (remotePlayers[i].team == RED_TEAM && red_texture)
+    if (keyboard_state[SDL_SCANCODE_D])
     {
-      texture_to_use = red_texture;
+        move_x += 1.0f;
+        p->flip_mode = SDL_FLIP_NONE; // Face right when moving right.
+        p->is_moving = true;
     }
+
+    // --- Normalize and Apply Movement ---
+    float len_sq = move_x * move_x + move_y * move_y;
+    // Normalize the movement vector only if there is input, prevents division by zero
+    // and ensures consistent speed regardless of direction (diagonal vs cardinal).
+    if (len_sq > 0.001f)
+    {
+        float len = sqrtf(len_sq);
+        move_x = (move_x / len) * PLAYER_SPEED * state->delta_time;
+        move_y = (move_y / len) * PLAYER_SPEED * state->delta_time;
+    }
+
+    // Create Rect of the player
+    SDL_FRect player_bounds = {
+        move_x - PLAYER_WIDTH / 2.0f + p->position.x,
+        move_y - PLAYER_HEIGHT / 2.0f + p->position.y,
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT};
+
+    bool collision = false;
+
+    for (int i = 0; i < MAX_TOTAL_TOWERS; i++)
+    {
+        if (SDL_HasRectIntersectionFloat(&player_bounds, &state->tower_manager->towers[i].rect))
+        {
+            collision = true;
+        }
+    }
+
+    for (int i = 0; i < MAX_BASES; i++)
+    {
+        if (SDL_HasRectIntersectionFloat(&player_bounds, &state->base_manager->bases[i].rect))
+        {
+            collision = true;
+        }
+    }
+
+    if (!collision) // If player doesn't intersect, update position
+    {
+        p->position.x += move_x;
+        p->position.y += move_y;
+    }
+
+    // --- Clamp Position ---
+    if (state->map_state)
+    {
+        // Prevent player from moving outside the map horizontally.
+        p->position.x = fmaxf(PLAYER_WIDTH / 2.0f, fminf(p->position.x, Map_GetWidthPixels(state->map_state) - PLAYER_WIDTH / 2.0f));
+        // Prevent player from moving outside the map vertically.
+        p->position.y = fmaxf(CLIFF_BOUNDARY, fminf(p->position.y, WATER_BOUNDARY));
+    }
+
+    // --- Animation State Reset ---
+    // If movement state changed (started/stopped moving), reset animation to the beginning.
+    if (p->is_moving != was_moving)
+    {
+        p->current_frame = 0;
+        p->anim_timer = 0.0f;
+    }
+}
+
+/**
+ * @brief Updates the animation state (current frame, sprite portion) for a specific player.
+ * Only updates frame based on timer for the local player; remote player animation
+ * is driven directly by network updates setting the sprite_portion.
+ * @param p Pointer to the PlayerInstance to update.
+ * @param delta_time Time since the last frame.
+ */
+static void update_player_animation(PlayerInstance *p, float delta_time)
+{
+    if (!p || !p->active)
+        return;
+
+    // Determine correct animation row based on movement state.
+    float target_row_y = p->is_moving ? PLAYER_SPRITE_WALK_ROW_Y : PLAYER_SPRITE_IDLE_ROW_Y;
+    int num_frames = p->is_moving ? PLAYER_SPRITE_NUM_WALK_FRAMES : PLAYER_SPRITE_NUM_IDLE_FRAMES;
+
+    // --- Local Player Animation ---
+    if (p->is_local)
+    {
+        // Switch animation sequence row if movement state changed.
+        if (p->sprite_portion.y != target_row_y)
+        {
+            p->current_frame = 0;
+            p->anim_timer = 0.0f;
+            p->sprite_portion.y = target_row_y;
+        }
+
+        // Advance frame based on timer.
+        p->anim_timer += delta_time;
+        if (p->anim_timer >= PLAYER_SPRITE_TIME_PER_FRAME)
+        {
+            p->anim_timer -= PLAYER_SPRITE_TIME_PER_FRAME; // Subtract, don't reset, to handle frame skips.
+            p->current_frame = (p->current_frame + 1) % num_frames;
+        }
+        // Update the source rectangle for rendering based on the current frame.
+        p->sprite_portion.x = (float)p->current_frame * PLAYER_SPRITE_FRAME_WIDTH;
+        p->sprite_portion.w = PLAYER_SPRITE_FRAME_WIDTH;
+        p->sprite_portion.h = PLAYER_SPRITE_FRAME_HEIGHT;
+    }
+    // --- Remote Player Animation ---
     else
     {
-      // Log a warning and skip if the required texture isn't available.
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "[Player] Missing texture for remote player %d (team %d)", i, remotePlayers[i].team);
-      continue;
+        // For remote players, sprite_portion.x/y are set directly by network updates.
+        // Just ensure the dimensions are correct.
+        p->sprite_portion.w = PLAYER_SPRITE_FRAME_WIDTH;
+        p->sprite_portion.h = PLAYER_SPRITE_FRAME_HEIGHT;
     }
-    // --- End Select Texture ---
-
-    // Calculate screen position based on network data and camera offset.
-    float screen_x = remotePlayers[i].position.x - camera.x - PLAYER_WIDTH / 2.0f;
-    float screen_y = remotePlayers[i].position.y - camera.y - PLAYER_HEIGHT / 2.0f;
-    SDL_FRect remote_player_dest_rect = {screen_x, screen_y, PLAYER_WIDTH, PLAYER_HEIGHT};
-
-    // Use sprite portion and flip mode received directly from network data.
-    SDL_FRect remote_sprite_portion = remotePlayers[i].sprite_portion;
-    SDL_FlipMode remote_flip_mode = remotePlayers[i].flip_mode;
-
-    // Render the remote player using the selected texture and their state.
-    SDL_RenderTextureRotated(state->renderer,
-                             texture_to_use, // Use the texture corresponding to the remote player's team.
-                             &remote_sprite_portion,
-                             &remote_player_dest_rect,
-                             0.0,  // No rotation angle.
-                             NULL, // Use center point for rotation (if any).
-                             remote_flip_mode);
-  }
 }
 
 /**
- * @brief Renders the player entity, including both local and remote players.
- * @param state Pointer to the global application state.
- * @return void
+ * @brief Renders a single player (local or remote) to the screen.
+ * Calculates screen position based on player world position and camera state.
+ * Uses the player's current sprite portion and flip mode.
+ * @param pm The PlayerManager instance.
+ * @param p Pointer to the PlayerInstance to render.
+ * @param state The main application state.
  */
-static void render(AppState *state)
+static void render_single_player(PlayerManager pm, PlayerInstance *p, AppState *state)
 {
-  // --- Render Local Player ---
-  if (local_player_index != -1 && players_array[local_player_index] != NULL)
-  {
-    render_local_player(state, players_array[local_player_index]);
-  }
-  // --- Render Remote Players ---
-  render_remote_players(state);
+    if (!pm || !p || !p->active || !pm->player_texture || !state || !state->camera_state)
+    {
+        return;
+    }
+
+    CameraState camera = state->camera_state;
+    float cam_x = Camera_GetX(camera);
+    float cam_y = Camera_GetY(camera);
+
+    // Calculate screen coordinates relative to the camera's view.
+    float screen_x = p->position.x - cam_x - PLAYER_WIDTH / 2.0f;
+    float screen_y = p->position.y - cam_y - PLAYER_HEIGHT / 2.0f;
+
+    SDL_FRect dst_rect = {screen_x, screen_y, PLAYER_WIDTH, PLAYER_HEIGHT};
+
+    SDL_RenderTextureRotated(state->renderer,
+                             p->texture,
+                             &p->sprite_portion, // Source rect from atlas
+                             &dst_rect,          // Destination rect on screen
+                             0.0,                // No rotation needed for player sprite
+                             NULL,               // Render around center
+                             p->flip_mode);      // Horizontal flip state
 }
 
-Player *init_player(SDL_Renderer *renderer, int assigned_player_index, bool team_arg)
+// --- Static Callback Functions (for EntityManager) ---
+
+/**
+ * @brief Entity update callback for the PlayerManager.
+ * Updates local player input and animation for all active players.
+ * @param manager The EntityManager instance (unused).
+ * @param state Pointer to the main AppState.
+ */
+static void player_manager_update_callback(EntityManager manager, AppState *state)
 {
-  // --- Input Validation ---
-  if (assigned_player_index < 0 || assigned_player_index >= MAX_CLIENTS)
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Player] Invalid index %d.", assigned_player_index);
-    return NULL;
-  }
-  // Prevent re-initialization unless it's the local player getting the correct team ID assigned.
-  if (players_array[assigned_player_index] != NULL)
-  {
-    if (assigned_player_index != local_player_index || players_array[assigned_player_index]->team != team_arg)
+    (void)manager;
+
+    PlayerManager pm = state ? state->player_manager : NULL;
+    if (!pm || !state)
+        return;
+
+    // --- Update Local Player ---
+    if (pm->local_player_client_id >= 0)
     {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Player] Attempt to re-initialize player index %d.", assigned_player_index);
+        handle_local_player_input(pm, state);
+        update_player_animation(&pm->players[pm->local_player_client_id], state->delta_time);
     }
-    // Ensure the local player struct reflects the assigned team ID.
-    if (assigned_player_index == local_player_index)
-    {
-      players_array[assigned_player_index]->team = team_arg;
-      // Update the primary texture pointer based on the finalized team ID.
-      players_array[assigned_player_index]->texture = (team_arg == BLUE_TEAM) ? players_array[assigned_player_index]->blue_texture : players_array[assigned_player_index]->red_texture;
-    }
-    return players_array[assigned_player_index];
-  }
-
-  local_player_index = assigned_player_index; // Store the index for this client instance.
-
-  // --- Allocate Player Struct ---
-  Player *new_player = SDL_malloc(sizeof(Player));
-  if (!new_player)
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Player %d] Malloc failed.", local_player_index);
-    local_player_index = -1;
-    return NULL;
-  }
-  memset(new_player, 0, sizeof(Player)); // Initialize struct members to zero/NULL.
-
-  // --- Load BOTH Team Textures ---
-  // Load blue team texture.
-  new_player->blue_texture = IMG_LoadTexture(renderer, BLUE_WIZARD_PATH);
-  if (!new_player->blue_texture)
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Player %d] Failed load texture '%s': %s", local_player_index, BLUE_WIZARD_PATH, SDL_GetError());
-    SDL_free(new_player);
-    local_player_index = -1;
-    return NULL;
-  }
-  SDL_SetTextureScaleMode(new_player->blue_texture, SDL_SCALEMODE_NEAREST); // Use nearest neighbor scaling for pixel art.
-
-  // Load red team texture.
-  new_player->red_texture = IMG_LoadTexture(renderer, RED_WIZARD_PATH);
-  if (!new_player->red_texture)
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Player %d] Failed load texture '%s': %s", local_player_index, RED_WIZARD_PATH, SDL_GetError());
-    SDL_DestroyTexture(new_player->blue_texture); // Clean up the already loaded blue texture.
-    SDL_free(new_player);
-    local_player_index = -1;
-    return NULL;
-  }
-  SDL_SetTextureScaleMode(new_player->red_texture, SDL_SCALEMODE_NEAREST);
-
-  // --- Set Initial Player State ---
-  new_player->team = team_arg;
-  // Set the primary 'texture' pointer to the correct texture based on the assigned team.
-  new_player->texture = (team_arg == BLUE_TEAM) ? new_player->blue_texture : new_player->red_texture;
-  new_player->sprite_portion = (SDL_FRect){0.0f, IDLE_ROW_Y, FRAME_WIDTH, FRAME_HEIGHT}; // Start with the first idle frame.
-
-  // --- Set Team-Based Starting Position ---
-  if (team_arg == BLUE_TEAM)
-  {
-    new_player->position = (SDL_FPoint){350.0f, BUILDINGS_POS_Y}; // Position near blue base.
-  }
-  else
-  {
-    new_player->position = (SDL_FPoint){2850.0f, BUILDINGS_POS_Y}; // Position near red base.
-  }
-
-  new_player->movement_speed = 1000;
-  // Set initial facing direction based on team (towards center of map).
-  new_player->flip_mode = (team_arg == BLUE_TEAM) ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
-  new_player->is_local_player = true;
-  new_player->client_index = local_player_index;
-  new_player->anim_timer = 0.0f;
-  new_player->current_frame = 0;
-  new_player->is_moving = false;
-
-  players_array[local_player_index] = new_player; // Store the pointer in the global array.
-
-  // --- Create Player Entity (if it doesn't exist yet) ---
-  // This ensures the entity system (update, render, etc.) is only registered once.
-  int existing_entity_idx = find_entity("player");
-  if (existing_entity_idx == -1)
-  {
-    Entity player_entity = {
-        .name = "player",
-        .cleanup = cleanup,
-        .handle_events = handle_events,
-        .update = update,
-        .render = render};
-    if (create_entity(player_entity) == SDL_APP_FAILURE)
-    {
-      // Cleanup allocated player resources if entity creation fails.
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Player %d] Failed create entity.", local_player_index);
-      cleanup();
-      return NULL;
-    }
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Player %d] Player entity created.", local_player_index);
-  }
-
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Player %d] Local player initialized for team %d.", local_player_index, team_arg);
-  return new_player;
 }
 
-SDL_FPoint funcGetPlayerPos()
+/**
+ * @brief Entity render callback for the PlayerManager.
+ * Renders all active players (local and remote).
+ * @param manager The EntityManager instance (unused).
+ * @param state Pointer to the main AppState.
+ */
+static void player_manager_render_callback(EntityManager manager, AppState *state)
 {
-  // Return a valid position only if the local player is initialized.
-  if (local_player_index != -1 && players_array[local_player_index] != NULL)
-  {
-    return players_array[local_player_index]->position;
-  }
-  // Return an invalid position marker if not initialized.
-  return (SDL_FPoint){-1.0f, -1.0f};
+    (void)manager;
+    PlayerManager pm = state ? state->player_manager : NULL;
+    if (!pm || !state)
+        return;
+
+    // Render all players currently marked as active.
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (pm->players[i].active)
+        {
+            render_single_player(pm, &pm->players[i], state);
+        }
+    }
 }
 
-bool get_local_player_state_for_network(PlayerStateData *out_data)
+/**
+ * @brief Entity event handling callback for the PlayerManager.
+ * Handles input events specifically for the local player (triggering attacks).
+ * @param manager The EntityManager instance (unused).
+ * @param state Pointer to the main AppState.
+ * @param event The SDL_Event to handle.
+ */
+static void player_manager_event_callback(EntityManager manager, AppState *state, SDL_Event *event)
 {
-  // Check for invalid pointers or uninitialized local player.
-  if (local_player_index == -1 || players_array[local_player_index] == NULL || out_data == NULL)
-  {
+    (void)manager;
+    PlayerManager pm = state ? state->player_manager : NULL;
+    // Ensure local player exists and required managers are available.
+    if (!pm || pm->local_player_client_id < 0 || !state || !state->attack_manager || !state->camera_state || !state->net_client_state)
+    {
+        return;
+    }
+
+    PlayerInstance *local_player = &pm->players[pm->local_player_client_id];
+    CameraState camera = state->camera_state;
+
+    // --- Handle Attack Input ---
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT)
+    {
+        int window_w, window_h;
+        SDL_GetWindowSize(state->window, &window_w, &window_h);
+        float cam_w = Camera_GetWidth(camera);
+        float cam_h = Camera_GetHeight(camera);
+        if (cam_w <= 0 || cam_h <= 0)
+            return; // Avoid division by zero if camera isn't ready.
+
+        // Calculate scaling factor between window size and logical camera size.
+        float scale_x = (float)window_w / cam_w;
+        float scale_y = (float)window_h / cam_h;
+
+        // Convert mouse screen coordinates to camera view coordinates.
+        float mouse_view_x = event->button.x / scale_x;
+        float mouse_view_y = event->button.y / scale_y;
+
+        // Convert camera view coordinates to world coordinates.
+        float target_world_x = mouse_view_x + Camera_GetX(camera);
+        float target_world_y = mouse_view_y + Camera_GetY(camera);
+
+        // Check if the target is within the player's attack range.
+        float dist_x = target_world_x - local_player->position.x;
+        float dist_y = target_world_y - local_player->position.y;
+        float distance = sqrtf(dist_x * dist_x + dist_y * dist_y);
+
+        if (distance <= PLAYER_ATTACK_RANGE)
+        {
+            // Send request to the network client module to inform the server.
+            NetClient_SendSpawnAttackRequest(state->net_client_state, ATTACK_TYPE_FIREBALL, target_world_x, target_world_y);
+        }
+    }
+}
+
+/**
+ * @brief Entity cleanup callback for the PlayerManager.
+ * Cleans up resources managed by the PlayerManager.
+ * @param manager The EntityManager instance (unused).
+ * @param state Pointer to the main AppState.
+ */
+static void player_manager_cleanup_callback(EntityManager manager, AppState *state)
+{
+    (void)manager;
+    PlayerManager pm = state ? state->player_manager : NULL;
+    if (!pm)
+        return;
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PlayerManager entity cleanup callback triggered.");
+    if (pm->player_texture)
+    {
+        SDL_DestroyTexture(pm->player_texture);
+        pm->player_texture = NULL;
+    }
+}
+
+// --- Public API Function Implementations ---
+
+PlayerManager PlayerManager_Init(AppState *state)
+{
+    if (!state || !state->renderer || !state->entity_manager)
+    {
+        SDL_SetError("Invalid AppState or missing renderer/entity_manager for PlayerManager_Init");
+        return NULL;
+    }
+
+    PlayerManager pm = (PlayerManager)SDL_calloc(1, sizeof(struct PlayerManager_s));
+    if (!pm)
+    {
+        SDL_OutOfMemory();
+        return NULL;
+    }
+
+    pm->local_player_client_id = -1; // Initialize as having no local player yet.
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        pm->players[i].active = false;
+        pm->players[i].is_local = false;
+        pm->players[i].team = state->team;
+    }
+
+    pm->blue_texture = IMG_LoadTexture(state->renderer, BLUE_WIZARD_PATH);
+    pm->red_texture = IMG_LoadTexture(state->renderer, RED_WIZARD_PATH);
+
+    pm->player_texture = pm->blue_texture;
+
+    if (state->team)
+    {
+        pm->player_texture = pm->red_texture;
+    }
+
+    if (!pm->player_texture)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[PlayerManager Init] Failed load texture : %s", SDL_GetError());
+        SDL_free(pm);
+        return NULL;
+    }
+    // Use nearest neighbor scaling for pixel art.
+    SDL_SetTextureScaleMode(pm->player_texture, SDL_SCALEMODE_NEAREST);
+
+    // --- Register with EntityManager ---
+    EntityFunctions player_funcs = {
+        .name = "player_manager",
+        .update = player_manager_update_callback,
+        .render = player_manager_render_callback,
+        .cleanup = player_manager_cleanup_callback,
+        .handle_events = player_manager_event_callback};
+
+    if (!EntityManager_Add(state->entity_manager, &player_funcs))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[PlayerManager Init] Failed to add entity to manager: %s", SDL_GetError());
+        if (pm->player_texture)
+            SDL_DestroyTexture(pm->player_texture);
+        SDL_free(pm);
+        return NULL;
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PlayerManager initialized and entity registered.");
+    return pm;
+}
+
+void PlayerManager_Destroy(PlayerManager pm)
+{
+    if (pm)
+    {
+        pm->player_texture = NULL; // Texture is destroyed in the cleanup callback.
+        SDL_free(pm);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PlayerManager state container destroyed.");
+    }
+}
+
+bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
+{
+    if (!pm || client_id >= MAX_CLIENTS)
+    {
+        SDL_SetError("Invalid PlayerManager or client ID (%u)", (unsigned int)client_id);
+        return false;
+    }
+    if (pm->local_player_client_id != -1)
+    {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Local player ID already set to %d, ignoring new ID %u", pm->local_player_client_id, (unsigned int)client_id);
+        return false; // Avoid setting local player twice.
+    }
+
+    pm->local_player_client_id = client_id;
+    pm->players[client_id].active = true;
+    pm->players[client_id].is_local = true;
+    // Set initial state for the newly identified local player.
+    pm->players[client_id].sprite_portion = (SDL_FRect){0.0f, PLAYER_SPRITE_IDLE_ROW_Y, PLAYER_SPRITE_FRAME_WIDTH, PLAYER_SPRITE_FRAME_HEIGHT};
+    pm->players[client_id].flip_mode = SDL_FLIP_NONE;
+    pm->players[client_id].is_moving = false;
+    pm->players[client_id].current_frame = 0;
+    pm->players[client_id].anim_timer = 0.0f;
+    pm->players[client_id].texture = pm->player_texture;
+    pm->players[client_id].current_health = PLAYER_HEALTH_MAX;
+
+    // Initial spawn position.
+    pm->players[client_id].position = (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
+
+    if (pm->players[client_id].team)
+    {
+        pm->players[client_id].position = (SDL_FPoint){BASE_RED_POS_X + 300, BUILDINGS_POS_Y};
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Local player ID set to %d", client_id);
+    return true;
+}
+
+void PlayerManager_UpdateRemotePlayer(PlayerManager pm, const Msg_PlayerStateData *data)
+{
+    if (!pm || !data || data->client_id >= MAX_CLIENTS)
+        return;
+
+    // Ignore updates intended for the local player received over the network.
+    if (data->client_id == pm->local_player_client_id)
+        return;
+
+    uint8_t id = data->client_id;
+    // Activate the player slot if this is the first time we hear about this ID.
+    if (!pm->players[id].active)
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Activating remote player %u", (unsigned int)id);
+        memset(&pm->players[id], 0, sizeof(PlayerInstance)); // Clear slot before use.
+        pm->players[id].active = true;
+        pm->players[id].is_local = false;
+        pm->players[id].team = data->team;
+        pm->players[id].texture = pm->blue_texture;
+        pm->players[id].current_health = data->current_health;
+
+        if (pm->players[id].team)
+        {
+            pm->players[id].texture = pm->red_texture;
+        }
+    }
+
+    // Apply the received state directly.
+    pm->players[id].position = data->position;
+    pm->players[id].sprite_portion = data->sprite_portion;
+    pm->players[id].flip_mode = data->flip_mode;
+    // Infer movement state from the received sprite row for animation purposes.
+    pm->players[id].is_moving = (fabsf(data->sprite_portion.y - PLAYER_SPRITE_WALK_ROW_Y) < 0.1f);
+}
+
+void PlayerManager_RemovePlayer(PlayerManager pm, uint8_t client_id)
+{
+    if (!pm || client_id >= MAX_CLIENTS)
+    {
+        return;
+    }
+    if (pm->players[client_id].active)
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Deactivating player %u", (unsigned int)client_id);
+        pm->players[client_id].active = false;
+        memset(&pm->players[client_id], 0, sizeof(PlayerInstance)); // Clear data for the inactive slot.
+        // If the local player is somehow removed, update the local ID tracker.
+        if (client_id == pm->local_player_client_id)
+        {
+            pm->local_player_client_id = -1;
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Local player %u removed.", (unsigned int)client_id);
+        }
+    }
+}
+
+bool PlayerManager_GetLocalPlayerPosition(PlayerManager pm, SDL_FPoint *out_pos)
+{
+    if (pm && out_pos && pm->local_player_client_id >= 0 && pm->players[pm->local_player_client_id].active)
+    {
+        *out_pos = pm->players[pm->local_player_client_id].position;
+        return true;
+    }
     return false;
-  }
+}
 
-  // Copy current state from the local player struct to the output struct.
-  Player *local_player = players_array[local_player_index];
-  out_data->client_id = (uint8_t)local_player->client_index;
-  out_data->team = local_player->team;
-  out_data->position = local_player->position;
-  out_data->sprite_portion = local_player->sprite_portion;
-  out_data->flip_mode = local_player->flip_mode;
+bool PlayerManager_GetPlayerPosition(PlayerManager pm, uint8_t client_id, SDL_FPoint *out_pos)
+{
+    if (!pm || !out_pos || client_id >= MAX_CLIENTS)
+    {
+        return false;
+    }
+    // Only return position if the requested player is currently active.
+    if (pm->players[client_id].active)
+    {
+        *out_pos = pm->players[client_id].position;
+        return true;
+    }
+    return false;
+}
 
-  return true;
+bool PlayerManager_GetPlayerRect(PlayerManager pm, uint8_t client_id, SDL_FRect *out_rect)
+{
+    if (!pm || !out_rect || client_id >= MAX_CLIENTS)
+    {
+        return false;
+    }
+    PlayerInstance *p = &pm->players[client_id];
+
+    if (p->active)
+    {
+        if (pm->players[pm->local_player_client_id].team != p->team)
+        {
+            *out_rect = (SDL_FRect){
+                .x = p->position.x,
+                .y = p->position.y,
+                .w = PLAYER_WIDTH,
+                .h = PLAYER_HEIGHT};
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PlayerManager_GetLocalPlayerState(PlayerManager pm, Msg_PlayerStateData *out_data)
+{
+    if (!pm || !out_data || pm->local_player_client_id < 0 || !pm->players[pm->local_player_client_id].active)
+    {
+        return false;
+    }
+
+    PlayerInstance *p = &pm->players[pm->local_player_client_id];
+
+    // Populate the network message struct with current local player state.
+    out_data->message_type = MSG_TYPE_C_PLAYER_STATE; // Set message type for server identification.
+    out_data->client_id = (uint8_t)pm->local_player_client_id;
+    out_data->position = p->position;
+    out_data->sprite_portion = p->sprite_portion;
+    out_data->flip_mode = p->flip_mode;
+    out_data->team = p->team;
+    out_data->current_health = p->current_health;
+
+    return true;
+}
+
+void damagePlayer(AppState state, int playerIndex, float damageValue, bool sendToServer)
+{
+    if (state.player_manager->players[playerIndex].current_health > 0)
+    {
+        state.player_manager->players[playerIndex].current_health -= damageValue;
+        SDL_Log("Player %d health %d", playerIndex, state.player_manager->players[playerIndex].current_health);
+    }
+
+    if (sendToServer)
+    {
+        NetClient_SendDamagePlayerRequest(state.net_client_state, playerIndex, damageValue);
+    }
+
+    if (state.player_manager->players[playerIndex].current_health <= 0)
+    {
+        SDL_Log("Player %d Destroyed", playerIndex);
+    }
 }

@@ -1,182 +1,213 @@
 #include "../include/base.h"
 
-typedef struct base
-{
-  SDL_FPoint position;
-  SDL_Texture *texture;
-  SDL_Texture *destroyed;
-  float health;
-} Base;
-
-Base *bases[MAX_BASES];
-
 // --- Static Helper Functions ---
 
 /**
- * @brief Cleans up resources used by the base system, specifically the textures.
- * @param void
- * @return void
+ * @brief Renders a single base instance.
+ * @param base Pointer to the BaseInstance to render.
+ * @param state Pointer to the main AppState.
  */
-static void cleanup()
+static void render_single_base(const BaseInstance *base, AppState *state)
 {
-  for (int i = 0; i < MAX_BASES; i++)
+  if (!base || !base->texture || !state || !state->renderer || !state->camera_state)
   {
-    if (bases[i]->texture)
-    {
-      SDL_DestroyTexture(bases[i]->texture);
-      bases[i]->texture = NULL;
-    }
+    return;
   }
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] All base textures cleaned up.");
+
+  CameraState camera = state->camera_state;
+  float cam_x = Camera_GetX(camera);
+  float cam_y = Camera_GetY(camera);
+
+  // Calculate screen position (rendering from top-left based on center position)
+  SDL_FRect dst_rect = {
+      .x = base->position.x - cam_x - BASE_RENDER_WIDTH / 2.0f,
+      .y = base->position.y - cam_y - BASE_RENDER_HEIGHT / 2.0f,
+      .w = BASE_RENDER_WIDTH,
+      .h = BASE_RENDER_HEIGHT};
+
+  SDL_RenderTexture(state->renderer, base->texture, NULL, &dst_rect);
 }
 
-void damageBase(float base_posx)
-{
-  for (int i = 0; i < MAX_BASES; i++)
-  {
-    if (bases[i]->position.x - camera.x - BASE_WIDTH / 2.0f == base_posx)
-    {
-      SDL_Log("Base %d is getting damaged", i);
-      bases[i]->health -= 10.0f;
-      if (bases[i]->health <= 0)
-      {
-        destroyBase(i, true);
-      }
-    }
-  }
-}
+// --- Static Callback Functions (for EntityManager) ---
 
-// --- This function is for now unnecessary, but could be usefull for modularity when sending and receiving data ---
-void destroyBase(int baseIndex, bool sendToServer)
+/**
+ * @brief Internal function to render all bases.
+ * @param bm_state The internal state of the base manager module.
+ * @param state The main application state.
+ */
+static void Internal_BaseManagerRender(BaseManagerState bm_state, AppState *state)
 {
-  if (sendToServer) // If I have destroyed the base, tell the server
-  {
-    if ((baseIndex == BLUE_TEAM))
-    {
-      SDL_Log("Blue team has won");
-      send_match_result(MSG_TYPE_BLUE_WON, baseIndex);
-    }
-    else
-    {
-      SDL_Log("Red team has won");
-      send_match_result(MSG_TYPE_RED_WON, baseIndex);
-    }
-  }
-
-  bases[baseIndex]->texture = bases[baseIndex]->destroyed;
+  if (!bm_state || !state)
+    return;
+  render_single_base(&bm_state->bases[0], state); // Render Red Base
+  render_single_base(&bm_state->bases[1], state); // Render Blue Base
 }
 
 /**
- * @brief Renders the base sprites at their calculated screen positions.
- * @param state Pointer to the global application state, containing the renderer.
- * @return void
+ * @brief Internal function to clean up BaseManager resources.
+ * @param bm_state The internal state of the base manager module.
  */
-static void render(AppState *state)
+static void Internal_BaseManagerCleanup(BaseManagerState bm_state)
 {
-  for (int i = 0; i < MAX_BASES; i++)
+  if (!bm_state)
+    return;
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Cleaning up BaseManager resources...");
+  if (bm_state->red_texture)
   {
-    // Skip rendering if the texture for this base isn't loaded.
-    if (!bases[i]->texture)
-      continue;
-
-    // Calculate screen position based on world position, camera offset, and sprite dimensions.
-    // Subtracting half width/height centers the sprite on its world position.
-    float screen_x = bases[i]->position.x - camera.x - BASE_WIDTH / 2.0f;
-    float screen_y = bases[i]->position.y - camera.y - BASE_HEIGHT / 2.0f;
-
-    SDL_FRect base_dest_rect = {
-        screen_x,
-        screen_y,
-        BASE_WIDTH,
-        BASE_HEIGHT};
-
-    // Render the base texture. NULL source rect uses the entire texture.
-    SDL_RenderTexture(state->renderer, bases[i]->texture, NULL, &base_dest_rect);
+    SDL_DestroyTexture(bm_state->red_texture);
+    bm_state->red_texture = NULL;
+  }
+  if (bm_state->blue_texture)
+  {
+    SDL_DestroyTexture(bm_state->blue_texture);
+    bm_state->blue_texture = NULL;
   }
 }
+
+/**
+ * @brief Wrapper function conforming to EntityFunctions.render signature.
+ * @param manager The EntityManager instance.
+ * @param state Pointer to the main AppState.
+ */
+static void base_manager_render_callback(EntityManager manager, AppState *state)
+{
+  (void)manager; // Manager instance is not used in this specific implementation
+  Internal_BaseManagerRender(state->base_manager, state);
+}
+
+/**
+ * @brief Wrapper function conforming to EntityFunctions.cleanup signature.
+ * @param manager The EntityManager instance.
+ * @param state Pointer to the main AppState.
+ */
+static void base_manager_cleanup_callback(EntityManager manager, AppState *state)
+{
+  (void)manager; // Manager instance is not used in this specific implementation
+  Internal_BaseManagerCleanup(state ? state->base_manager : NULL);
+  if (state)
+  {
+    state->base_manager = NULL; // Indicate cleanup happened
+  }
+}
+
 // --- Public API Function Implementations ---
 
-SDL_AppResult init_base(SDL_Renderer *renderer)
+BaseManagerState BaseManager_Init(AppState *state)
 {
-  // --- Load Textures ---
-  const char *paths[MAX_BASES] = {
-      "./resources/Sprites/Blue_Team/Castle_Blue.png",
-      "./resources/Sprites/Red_Team/Castle_Red.png"};
-  const char *path_destroyed = {"./resources/Sprites/Castle_Destroyed.png"};
-
-  for (int i = 0; i < MAX_BASES; i++)
+  if (!state || !state->renderer || !state->entity_manager)
   {
-    bases[i] = SDL_malloc(sizeof(Base));
-    bases[i]->texture = IMG_LoadTexture(renderer, paths[i]);
-    bases[i]->destroyed = IMG_LoadTexture(renderer, path_destroyed);
-    if (!bases[i]->texture)
-    {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base] Failed to load base texture '%s': %s", paths[i], SDL_GetError());
-      // Clean up textures loaded so far before failing.
-      cleanup();
-      return SDL_APP_FAILURE;
-    }
-    if (!bases[i]->destroyed)
-    {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base] Failed to load destroyed base texture '%s': %s", paths[i], SDL_GetError());
-      // Clean up textures loaded so far before failing.
-      cleanup();
-      return SDL_APP_FAILURE;
-    }
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Loaded texture: %s", paths[i]);
-
-    // Use nearest neighbor scaling for pixel art.
-    SDL_SetTextureScaleMode(bases[i]->texture, SDL_SCALEMODE_NEAREST);
-    switch (i)
-    {
-    case 0:
-      bases[i]->position = (SDL_FPoint){BLUE_BASE_POS_X, BUILDINGS_POS_Y}; // Position of base 1, Blue Team
-      break;
-    case 1:
-      bases[i]->position = (SDL_FPoint){RED_BASE_POS_X, BUILDINGS_POS_Y}; // Position of base 2, Red Team
-      break;
-    default:
-      break;
-    }
-    bases[i]->health = 200.0f;
+    SDL_SetError("Invalid AppState or missing renderer/entity_manager for BaseManager_Init");
+    return NULL;
   }
 
-  // --- Register Entity ---
-  // Register the base entity system if it hasn't been registered yet.
-  if (find_entity("base") == -1)
+  // --- Allocation and Resource Loading ---
+  BaseManagerState bm_state = (BaseManagerState)SDL_calloc(1, sizeof(struct BaseManagerState_s));
+  if (!bm_state)
   {
-    Entity base_entity = {
-        .name = "base",
-        .update = NULL,
-        .render = render,
-        .cleanup = cleanup,
-        .handle_events = NULL};
-
-    if (create_entity(base_entity) == SDL_APP_FAILURE)
-    {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base] Failed to create base entity.");
-      cleanup(); // Clean up textures if entity registration fails.
-      return SDL_APP_FAILURE;
-    }
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Base entity created.");
+    SDL_OutOfMemory();
+    return NULL;
   }
 
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Base] Base system initialized.");
-  return SDL_APP_SUCCESS;
+  bm_state->red_texture = IMG_LoadTexture(state->renderer, RED_BASE_PATH);
+  if (!bm_state->red_texture)
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base Init] Failed load texture '%s': %s", RED_BASE_PATH, SDL_GetError());
+    SDL_free(bm_state);
+    return NULL;
+  }
+  SDL_SetTextureScaleMode(bm_state->red_texture, SDL_SCALEMODE_NEAREST);
+
+  bm_state->blue_texture = IMG_LoadTexture(state->renderer, BLUE_BASE_PATH);
+  if (!bm_state->blue_texture)
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base Init] Failed load texture '%s': %s", BLUE_BASE_PATH, SDL_GetError());
+    SDL_DestroyTexture(bm_state->red_texture); // Clean up already loaded texture
+    SDL_free(bm_state);
+    return NULL;
+  }
+  SDL_SetTextureScaleMode(bm_state->blue_texture, SDL_SCALEMODE_NEAREST);
+
+  bm_state->destroyed_texture = IMG_LoadTexture(state->renderer, DESTROYED_BASE_PATH);
+  if (!bm_state->destroyed_texture)
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base Init] Failed load texture '%s': %s", DESTROYED_BASE_PATH, SDL_GetError());
+    SDL_DestroyTexture(bm_state->red_texture); // Clean up already loaded texture
+    SDL_free(bm_state);
+    return NULL;
+  }
+  SDL_SetTextureScaleMode(bm_state->destroyed_texture, SDL_SCALEMODE_NEAREST);
+
+  // --- Initialize Base Instances ---
+  bm_state->bases[0]
+      .position = (SDL_FPoint){BASE_BLUE_POS_X, BUILDINGS_POS_Y};
+  bm_state->bases[0].texture = bm_state->blue_texture;
+  bm_state->bases[0].max_health = BASE_HEALTH_MAX;
+  bm_state->bases[0].current_health = BASE_HEALTH_MAX;
+  bm_state->bases[0].rect = (SDL_FRect){BASE_BLUE_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
+  bm_state->bases[0].team = BLUE_TEAM;
+
+  bm_state->bases[1].position = (SDL_FPoint){BASE_RED_POS_X, BUILDINGS_POS_Y};
+  bm_state->bases[1].texture = bm_state->red_texture;
+  bm_state->bases[1].max_health = BASE_HEALTH_MAX;
+  bm_state->bases[1].current_health = BASE_HEALTH_MAX;
+  bm_state->bases[1].rect = (SDL_FRect){BASE_RED_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
+  bm_state->bases[1].team = RED_TEAM;
+
+  // --- Register with EntityManager ---
+  EntityFunctions base_funcs = {
+      .name = "base_manager",
+      .render = base_manager_render_callback,
+      .cleanup = base_manager_cleanup_callback,
+      .update = NULL,
+      .handle_events = NULL};
+
+  if (!EntityManager_Add(state->entity_manager, &base_funcs))
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Base Init] Failed to add entity to manager: %s", SDL_GetError());
+    Internal_BaseManagerCleanup(bm_state); // Cleanup loaded textures
+    SDL_free(bm_state);
+    return NULL;
+  }
+
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "BaseManager initialized and entity registered.");
+  return bm_state;
 }
 
-SDL_FRect getBasePos(int baseIndex)
+void BaseManager_Destroy(BaseManagerState bm_state)
 {
-  if (baseIndex < 0 || baseIndex >= bases)
+  // Cleanup callback handles texture destruction.
+  if (bm_state)
   {
-    return (SDL_FRect){0, 0, 0, 0}; // Return empty rect on error
+    // Prevent dangling pointers after cleanup callback potentially ran via EntityManager
+    bm_state->red_texture = NULL;
+    bm_state->blue_texture = NULL;
+    SDL_free(bm_state);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "BaseManagerState container destroyed.");
+  }
+}
+
+void damageBase(AppState state, int baseIndex, float damageValue, bool sendToServer)
+{
+  if (state.base_manager->bases[baseIndex].current_health > 0)
+  {
+    state.base_manager->bases[baseIndex].current_health -= damageValue;
+    SDL_Log("Base %d health %d", baseIndex, state.base_manager->bases[baseIndex].current_health);
   }
 
-  // Calculate bounds based on center position and dimensions
-  SDL_FRect bounds = {
-      bases[baseIndex]->position.x - BASE_WIDTH / 2.0f,
-      bases[baseIndex]->position.y - BASE_HEIGHT / 2.0f,
-      BASE_WIDTH,
-      BASE_HEIGHT};
-  return bounds;
+  if (state.base_manager->bases[baseIndex].current_health <= 0)
+  {
+    state.base_manager->bases[baseIndex].texture = state.base_manager->destroyed_texture;
+
+    if (sendToServer)
+    {
+      NetClient_SendMatchResult(state.net_client_state, state.team);
+    }
+
+    SDL_Log("Base %d Destroyed", baseIndex);
+  }
+
+  if (sendToServer)
+  {
+    NetClient_SendDamageBaseRequest(state.net_client_state, baseIndex, damageValue);
+  }
 }

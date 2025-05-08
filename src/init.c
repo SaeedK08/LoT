@@ -3,72 +3,75 @@
 // --- Static Helper Functions ---
 
 /**
- * @brief Cleans up resources initialized before a failure point during app init.
- * @param state The application state containing pointers to initialized resources.
- * @param net_quit Flag indicating if SDLNet_Quit should be called.
- * @param server_cleanup Flag indicating if server entity cleanup is needed.
- * @param client_cleanup Flag indicating if client entity cleanup is needed.
- * @param map_cleanup Flag indicating if map entity cleanup is needed.
- * @param base_cleanup Flag indicating if base entity cleanup is needed.
- * @param tower_cleanup Flag indicating if tower entity cleanup is needed.
- * @param attack_cleanup Flag indicating if attack entity cleanup is needed.
- * @return void
+ * @brief Cleans up resources initialized *before* a failure occurred during SDL_AppInit.
+ * This function is called internally by SDL_AppInit if an initialization step fails.
+ * It attempts to destroy modules and subsystems in the reverse order they were created,
+ * up to the point of failure.
+ * @param state The main application state.
+ * @param failure_stage A string identifying which initialization stage failed.
  */
-static void cleanup_on_failure(AppState *state, bool net_quit, bool server_cleanup, bool client_cleanup, bool map_cleanup, bool base_cleanup, bool tower_cleanup, bool attack_cleanup)
+static void cleanup_on_failure(AppState *state, const char *failure_stage)
 {
-  SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Initialization failed, cleaning up...");
+  SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Initialization failed at stage '%s', cleaning up...", failure_stage);
 
-  // --- Entity Cleanup (Reverse Order of Creation) ---
-  if (attack_cleanup)
+  // --- Destroy ADT Modules (Reverse Order of Creation) ---
+  // The comparisons check if the failure happened *before* the respective module's init.
+  if (strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("fireball");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    Camera_Destroy(state->camera_state);
   }
-  if (tower_cleanup)
+  if (strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("tower");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    PlayerManager_Destroy(state->player_manager);
   }
-  if (base_cleanup)
+  if (strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("base");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    AttackManager_Destroy(state->attack_manager);
   }
-  // Player and Camera cleanup are handled by net_client cleanup now
-  if (map_cleanup)
+  if (strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("map");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    TowerManager_Destroy(state->tower_manager);
   }
-  if (client_cleanup)
+  if (strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("net_client");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    BaseManager_Destroy(state->base_manager);
   }
-  if (server_cleanup)
+  if (strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
   {
-    int idx = find_entity("net_server");
-    if (idx != -1 && entities[idx].cleanup)
-      entities[idx].cleanup();
+    Map_Destroy(state->map_state);
+  }
+  if (strcmp(failure_stage, "NetClient_Init") != 0 && strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
+  {
+    NetClient_Destroy(state->net_client_state);
+  }
+  // Only attempt server cleanup if it was supposed to be initialized and didn't fail before client init
+  if (state->is_server && state->net_server_state && strcmp(failure_stage, "NetServer_Init") != 0 && strcmp(failure_stage, "NetClient_Init") != 0 && strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
+  {
+    NetServer_Destroy(state->net_server_state);
+  }
+  // Only destroy EntityManager if it was created successfully
+  if (state->entity_manager && strcmp(failure_stage, "EntityManager_Create") != 0)
+  {
+    EntityManager_Destroy(state->entity_manager, state);
   }
 
   // --- SDL Subsystem Cleanup ---
-  if (net_quit)
+  if (strcmp(failure_stage, "SDLNet_Init") != 0)
+  {
     SDLNet_Quit();
+  }
   if (state->renderer)
     SDL_DestroyRenderer(state->renderer);
   if (state->window)
     SDL_DestroyWindow(state->window);
-  SDL_QuitSubSystem(SDL_INIT_VIDEO); // Assumes SDL_Init(VIDEO) succeeded
+  if (strcmp(failure_stage, "SDL_Init") != 0)
+  {
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+  }
   SDL_free(state);
 }
 
-// --- Public API Function Implementations ---
+// --- SDL Application Callback Definitions ---
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -85,12 +88,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   {
     for (int i = 1; i < argc; ++i)
     {
-      if (strcmp(argv[i], "--server") == 0)
+      if (!strcmp(argv[i], "--server"))
       {
         is_server_arg = true;
         break;
       }
-      if (strcmp(argv[i], "--red") == 0)
+      if (!strcmp(argv[i], "--red"))
       {
         team_arg = RED_TEAM;
         break;
@@ -98,25 +101,27 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
   }
 
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Running as %s.", is_server_arg ? "server" : "client");
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Running as %s.", is_server_arg ? "server (default)" : "client");
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Playing for team %s.", team_arg ? "RED" : "BLUE");
 
   // --- State Allocation ---
-  AppState *state = SDL_malloc(sizeof(AppState));
+  AppState *state = (AppState *)SDL_calloc(1, sizeof(AppState));
+  state->team = team_arg;
   if (!state)
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] Failed to allocate AppState.");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
-  memset(state, 0, sizeof(AppState));
   state->is_server = is_server_arg;
+  state->quit_requested = false;
   *appstate = state;
 
   // --- SDL Initialization ---
   if (!SDL_Init(SDL_INIT_VIDEO))
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] SDL_Init(VIDEO) failed: %s", SDL_GetError());
-    SDL_free(state);
+    cleanup_on_failure(state, "SDL_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
@@ -126,7 +131,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   if (!state->window)
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] SDL_CreateWindow failed: %s", SDL_GetError());
-    cleanup_on_failure(state, false, false, false, false, false, false, false);
+    cleanup_on_failure(state, "SDL_CreateWindow");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
@@ -136,7 +141,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   if (!state->renderer)
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] SDL_CreateRenderer failed: %s", SDL_GetError());
-    cleanup_on_failure(state, false, false, false, false, false, false, false);
+    cleanup_on_failure(state, "SDL_CreateRenderer");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
@@ -144,7 +149,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   // --- Set Logical Presentation ---
   if (!SDL_SetRenderLogicalPresentation(state->renderer, (int)CAMERA_VIEW_WIDTH, (int)CAMERA_VIEW_HEIGHT, SDL_LOGICAL_PRESENTATION_LETTERBOX))
   {
-    // This might not be fatal, but log a warning.
     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "[Init] SDL_SetRenderLogicalPresentation failed: %s", SDL_GetError());
   }
 
@@ -152,58 +156,85 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   if (!SDLNet_Init())
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] SDLNet_Init failed: %s", SDL_GetError());
-    cleanup_on_failure(state, false, false, false, false, false, false, false);
+    cleanup_on_failure(state, "SDLNet_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
 
-  // --- Server Initialization (Conditional) ---
+  // --- Create Entity Manager ---
+  state->entity_manager = EntityManager_Create(MAX_MANAGED_ENTITIES);
+  if (!state->entity_manager)
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] EntityManager_Create failed: %s", SDL_GetError());
+    cleanup_on_failure(state, "EntityManager_Create");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
+  // --- Initialize Core Modules (Order Matters!) ---
   if (state->is_server)
   {
-    if (init_server() == SDL_APP_FAILURE)
+    state->net_server_state = NetServer_Init(state);
+    if (!state->net_server_state)
     {
-      cleanup_on_failure(state, true, false, false, false, false, false, false);
+      cleanup_on_failure(state, "NetServer_Init");
       *appstate = NULL;
       return SDL_APP_FAILURE;
     }
   }
-
-  // --- Client Initialization (Always) ---
-  if (init_client(team_arg) == SDL_APP_FAILURE)
+  // Always initialize the client module
+  state->net_client_state = NetClient_Init(state);
+  if (!state->net_client_state)
   {
-    cleanup_on_failure(state, true, state->is_server, false, false, false, false, false);
+    cleanup_on_failure(state, "NetClient_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
 
-  // --- Map Initialization ---
-  if (init_map(state->renderer) == SDL_APP_FAILURE)
+  state->map_state = Map_Init(state);
+  if (!state->map_state)
   {
-    cleanup_on_failure(state, true, state->is_server, true, false, false, false, false);
+    cleanup_on_failure(state, "Map_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
 
-  // --- Base Initialization ---
-  if (init_base(state->renderer) == SDL_APP_FAILURE)
+  state->base_manager = BaseManager_Init(state);
+  if (!state->base_manager)
   {
-    cleanup_on_failure(state, true, state->is_server, true, true, false, false, false);
+    cleanup_on_failure(state, "Base_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
 
-  // --- Tower Initialization ---
-  if (init_tower(state->renderer) == SDL_APP_FAILURE)
+  state->tower_manager = TowerManager_Init(state);
+  if (!state->tower_manager)
   {
-    cleanup_on_failure(state, true, state->is_server, true, true, true, false, false);
+    cleanup_on_failure(state, "Tower_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }
 
-  // --- Attack System Initialization ---
-  if (init_fireball(state->renderer, team_arg) == SDL_APP_FAILURE)
+  state->attack_manager = AttackManager_Init(state);
+  if (!state->attack_manager)
   {
-    cleanup_on_failure(state, true, state->is_server, true, true, true, true, false);
+    cleanup_on_failure(state, "Attack_Init");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
+  state->player_manager = PlayerManager_Init(state);
+  if (!state->player_manager)
+  {
+    cleanup_on_failure(state, "PlayerManager_Init");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
+  state->camera_state = Camera_Init(state);
+  if (!state->camera_state)
+  {
+    cleanup_on_failure(state, "Camera_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }

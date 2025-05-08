@@ -1,57 +1,86 @@
 #pragma once
 
+// --- Standard Library Includes ---
+#include <math.h>
+
+// --- SDL/External Library Includes ---
+
+// --- Project Includes ---
 #include "../include/common.h"
+#include "../include/entity.h"
+#include "../include/net_server.h"
+#include "../include/player.h"
+#include "../include/map.h"
 #include "../include/camera.h"
-#include "../include/tower.h"
 #include "../include/base.h"
-#include "../include/net_client.h"
+#include "../include/tower.h"
 
-// --- Structures ---
+// --- Constants ---
+#define MAX_ATTACKS 100 /**< Maximum number of concurrent attacks allowed. */
 
-/**
- * @brief Represents a single fireball projectile in the game.
- */
-typedef struct FireBall
-{
-    SDL_Texture *texture;        /**< Shared texture atlas for the fireball animation. */
-    SDL_FPoint src;              /**< Source rectangle coordinates within the texture atlas (not currently used for animation). */
-    SDL_FPoint dst;              /**< Destination position (top-left corner) in screen coordinates. */
-    SDL_FPoint target;           /**< Target position in screen coordinates the fireball moves towards. */
-    int hit;                     /**< Flag indicating if the fireball has hit something (1) or not (0). */
-    SDL_FRect attackable_tower1; /**< The towers that a player can attack based on its team */
-    SDL_FRect attackable_tower2; /**< The towers that a player can attack based on its team */
-    SDL_FRect attackable_base;   /**< The bases that a player can attack based on its team */
-    int active;                  /**< Flag indicating if the fireball slot is currently in use (1) or available (0). */
-    float angle_deg;             /**< Angle of rotation in degrees for rendering. */
-    float velocity_x;            /**< Horizontal velocity component. */
-    float velocity_y;            /**< Vertical velocity component. */
-    int rotation_diff_x;         /**< X offset adjustment due to rotation (not currently calculated). */
-    int rotation_diff_y;         /**< Y offset adjustment due to rotation (not currently calculated). */
-} FireBall;
+#define FIREBALL_FRAME_WIDTH 40
+#define FIREBALL_FRAME_HEIGHT 40
+#define FIREBALL_RENDER_WIDTH 33.0f
+#define FIREBALL_RENDER_HEIGHT 39.0f
+#define FIREBALL_SPEED 100.0f    /**< Speed in pixels/second for fireballs. */
+#define FIREBALL_HIT_RANGE 10.0f /**< Collision radius for fireballs. */
+#define FIREBALL_DAMAGE_VALUE 50.0f
 
-// --- Global Variables ---
+// --- Opaque Pointer Type ---
 
 /**
- * @brief Global array storing all fireball instances.
+ * @brief Opaque handle to the AttackManager state.
+ * Manages all active attack instances in the game.
  */
-extern FireBall fireBalls[MAX_FIREBALLS];
+typedef struct AttackManager_s *AttackManager;
 
-// --- Public Function Declarations ---
-
-/**
- * @brief Initializes the fireball system, loads resources, and registers the entity.
- * @param renderer The main SDL renderer.
- * @return SDL_APP_SUCCESS on success, SDL_APP_FAILURE on error.
- */
-SDL_AppResult init_fireball(SDL_Renderer *renderer, bool team_arg);
+// --- Public API Function Declarations ---
 
 /**
- * @brief Creates and launches a new fireball from the player's position towards the mouse cursor.
- * @param player_pos_x The player's world X coordinate.
- * @param player_pos_y The player's world Y coordinate.
- * @param cam_x The camera's world X coordinate.
- * @param cam_y The camera's world Y coordinate.
- * @param mouse_view_x The mouse's X coordinate relative to the viewport.
- * @param mouse_view_y The mouse's Y coordinate relative to the viewport.
+ * @brief Initializes the AttackManager module and registers its entity functions.
+ * Loads resources required for known attack types.
+ * @param state Pointer to the main AppState.
+ * @return A new AttackManager instance on success, NULL on failure.
+ * @sa AttackManager_Destroy
  */
-void activate_fireballs(float mouse_x, float mouse_y, bool team, bool sendToServer, SDL_Window *window);
+AttackManager AttackManager_Init(AppState *state);
+
+/**
+ * @brief Destroys the AttackManager instance and associated resources.
+ * Cleanup is primarily handled via the EntityManager callback. This frees the manager state itself.
+ * @param am The AttackManager instance to destroy.
+ * @sa AttackManager_Init
+ */
+void AttackManager_Destroy(AttackManager am);
+
+/**
+ * @brief Handles a spawn message received from the server for a new attack instance.
+ * Finds an available slot and initializes the attack based on the received data.
+ * Called by the NetClient when receiving MSG_TYPE_S_SPAWN_ATTACK.
+ * @param am The AttackManager instance.
+ * @param data Pointer to the received Msg_ServerSpawnAttackData containing spawn details.
+ */
+void AttackManager_HandleServerSpawn(AttackManager am, const Msg_ServerSpawnAttackData *data);
+
+/**
+ * @brief Handles a request from a client (forwarded by NetServer) to spawn an attack.
+ * Performs validation, calculates start position and velocity, assigns an ID,
+ * and requests the NetServer to broadcast the spawn message. Also spawns locally if server.
+ * @param am The AttackManager instance.
+ * @param state The main AppState.
+ * @param owner_id The ID of the client requesting the attack.
+ * @param type The type of attack requested (from AttackType enum).
+ * @param target_pos The world position the attack is aimed at.
+ */
+void AttackManager_HandleClientSpawnRequest(AttackManager am, AppState *state, uint8_t owner_id, AttackType type, SDL_FPoint target_pos);
+
+/**
+ * @brief Handles a destroy message received from the server for an existing attack instance.
+ * Marks the specified attack as inactive for removal during the next update cycle.
+ * Called by the NetClient when receiving MSG_TYPE_S_DESTROY_OBJECT if object_type is ATTACK.
+ * @param am The AttackManager instance.
+ * @param data Pointer to the received Msg_DestroyObjectData containing the object type and ID.
+ */
+void AttackManager_HandleDestroyObject(AttackManager am, const Msg_DestroyObjectData *data);
+
+void AttackManager_ServerSpawnTowerAttack(AttackManager am, AppState *state, AttackType type, SDL_FPoint target_pos, int towerIndex);

@@ -1,34 +1,47 @@
 #pragma once
 
+// --- Includes ---
 #include "../include/common.h"
+#include "../include/attack.h"
+#include "../include/entity.h"
+#include "../include/tower.h"
+
+// --- Opaque Pointer Type ---
+/**
+ * @brief Opaque handle to the NetServerState.
+ * Manages the server-side network state, including listening for connections
+ * and handling communication with connected clients.
+ */
+typedef struct NetServerState_s *NetServerState;
+
+// --- Public API Function Declarations ---
 
 /**
- * @brief Holds connection and state information for a single connected client.
+ * @brief Initializes the Network Server module and registers its entity functions.
+ * Creates the server state and starts listening for client connections.
+ * Only call this if running in server mode.
+ * @param state Pointer to the main AppState.
+ * @return A new NetServerState instance on success, NULL on failure.
+ * @sa NetServer_Destroy
  */
-typedef struct
-{
-    SDLNet_StreamSocket *socket;
-    PlayerStateData last_received_state; /**< Last known state received from this client. */
-    bool active;
-} ClientInfo;
+NetServerState NetServer_Init(AppState *state);
 
 /**
- * @brief Initializes the server socket, prepares client slots, and creates the server entity.
- * @return SDL_APP_SUCCESS on successful initialization, SDL_APP_FAILURE otherwise.
+ * @brief Destroys the NetServerState instance, closes the listening socket,
+ * and disconnects all clients.
+ * Cleanup is primarily handled via the EntityManager callback. This frees the manager state itself.
+ * @param ns_state The NetServerState instance to destroy.
+ * @sa NetServer_Init
  */
-SDL_AppResult init_server(void);
+void NetServer_Destroy(NetServerState ns_state);
 
 /**
- * @brief Returns the current number of active clients connected to the server.
- * @return The count of clients marked as active.
+ * @brief Broadcasts a message buffer to connected clients.
+ * Allows other modules (like AttackManager) to request broadcasts. Sends only to
+ * clients in the WELCOMED state.
+ * @param ns_state The NetServerState instance.
+ * @param buffer Pointer to the data buffer.
+ * @param length Number of bytes to send.
+ * @param exclude_client_index Index of a client to skip sending to (-1 to broadcast to all).
  */
-int get_active_client_count(void);
-
-/**
- * @brief Sends a data buffer to all active clients, optionally excluding one.
- * @param buffer Pointer to the data buffer to send.
- * @param length The number of bytes to send from the buffer.
- * @param excludeClientIndex The index of a client to exclude from the broadcast, or -1 to send to all.
- * @return void
- */
-void broadcast_buffer(const void *buffer, int length, int excludeClientIndex);
+void NetServer_BroadcastMessage(NetServerState ns_state, const void *buffer, int length, int exclude_client_index);

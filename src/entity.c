@@ -1,96 +1,173 @@
 #include "../include/entity.h"
 
-// --- Global Variables ---
-Entity entities[MAX_ENTITIES];
-int entities_count = 0;
+// --- Internal Structures ---
+
+/**
+ * @brief Internal state for the EntityManager module.
+ */
+struct EntityManager_s
+{
+    EntityFunctions *entities; /**< Dynamic array of registered entity functions. */
+    int count;                 /**< Current number of registered entities. */
+    int capacity;              /**< Max number of entities the array can hold. */
+};
 
 // --- Public API Function Implementations ---
-SDL_AppResult create_entity(Entity entity)
+
+EntityManager EntityManager_Create(int max_entities)
 {
-  if (entities_count < MAX_ENTITIES)
-  {
-    // Check if an entity with the same name already exists.
-    if (find_entity(entity.name) != -1)
+    if (max_entities <= 0)
     {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Entity] Entity with name '%s' already exists.", entity.name);
-      return SDL_APP_FAILURE;
+        SDL_SetError("Cannot create EntityManager with capacity <= 0");
+        return NULL;
     }
-    entities[entities_count] = entity;
-    entities_count++;
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Entity] Created entity: %s", entity.name);
-    return SDL_APP_SUCCESS;
-  }
-  else
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Entity] Maximum number of entities (%d) reached. Cannot create entity '%s'.", MAX_ENTITIES, entity.name);
-    return SDL_APP_FAILURE;
-  }
-}
 
-SDL_AppResult delete_entity(int index)
-{
-  if (index < 0 || index >= entities_count)
-  {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Entity] Invalid index %d provided for deletion (count: %d).", index, entities_count);
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Entity] Deleting entity: %s (index %d)", entities[index].name, index);
-
-  // Call the entity's specific cleanup function, if provided.
-  if (entities[index].cleanup)
-  {
-    entities[index].cleanup();
-  }
-
-  // Overwrite the entity at the given index with the last entity in the array.
-  // This avoids shifting all subsequent elements.
-  if (index < entities_count - 1)
-  {
-    entities[index] = entities[entities_count - 1];
-  }
-
-  entities_count--;
-  // Clear the now-unused last slot.
-  memset(&entities[entities_count], 0, sizeof(Entity));
-
-  return SDL_APP_SUCCESS;
-}
-
-void swap_entities(int index1, int index2)
-{
-  // Basic validation for indices.
-  if (index1 < 0 || index1 >= entities_count || index2 < 0 || index2 >= entities_count)
-  {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Entity] Invalid indices (%d, %d) provided for swap (count: %d).", index1, index2, entities_count);
-    return;
-  }
-  if (index1 == index2)
-  {
-    return; // No operation needed if indices are the same.
-  }
-
-  // Perform swap using a temporary variable.
-  Entity temp = entities[index1];
-  entities[index1] = entities[index2];
-  entities[index2] = temp;
-}
-
-int find_entity(const char *name)
-{
-  if (!name)
-  {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Entity] Attempted to find entity with NULL name.");
-    return -1;
-  }
-
-  for (int i = 0; i < entities_count; i++)
-  {
-    // Compare the provided name with the name of the entity at the current index.
-    if (strcmp(entities[i].name, name) == 0)
+    EntityManager manager = (EntityManager)SDL_malloc(sizeof(struct EntityManager_s));
+    if (!manager)
     {
-      return i; // Return the index if a match is found.
+        SDL_OutOfMemory();
+        return NULL;
     }
-  }
-  return -1; // Return -1 if no entity with the given name is found.
+
+    manager->entities = (EntityFunctions *)SDL_calloc(max_entities, sizeof(EntityFunctions));
+    if (!manager->entities)
+    {
+        SDL_OutOfMemory();
+        SDL_free(manager);
+        return NULL;
+    }
+
+    manager->count = 0;
+    manager->capacity = max_entities;
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "EntityManager created with capacity %d.", max_entities);
+    return manager;
+}
+
+void EntityManager_Destroy(EntityManager manager, AppState *state)
+{
+    if (!manager)
+    {
+        return;
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Destroying EntityManager...");
+    // Call cleanup for all registered entities in reverse order of addition.
+    for (int i = manager->count - 1; i >= 0; --i)
+    {
+        if (manager->entities[i].cleanup)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Cleaning up entity: %s", manager->entities[i].name ? manager->entities[i].name : "[Unnamed]");
+            manager->entities[i].cleanup(manager, state);
+        }
+    }
+
+    SDL_free(manager->entities);
+    SDL_free(manager);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "EntityManager destroyed.");
+}
+
+bool EntityManager_Add(EntityManager manager, const EntityFunctions *funcs)
+{
+    if (!manager)
+    {
+        SDL_SetError("EntityManager is NULL");
+        return false;
+    }
+    if (!funcs)
+    {
+        SDL_SetError("EntityFunctions pointer is NULL");
+        return false;
+    }
+    if (!funcs->name || funcs->name[0] == '\0')
+    {
+        SDL_SetError("Entity must have a name");
+        return false;
+    }
+
+    if (manager->count >= manager->capacity)
+    {
+        SDL_SetError("EntityManager is full (capacity: %d)", manager->capacity);
+        return false;
+    }
+
+    // Check for duplicate names before adding.
+    for (int i = 0; i < manager->count; ++i)
+    {
+        if (manager->entities[i].name && strcmp(manager->entities[i].name, funcs->name) == 0)
+        {
+            SDL_SetError("Entity with name '%s' already exists", funcs->name);
+            return false;
+        }
+    }
+
+    manager->entities[manager->count] = *funcs;
+    manager->count++;
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Added entity '%s' to EntityManager (count: %d).", funcs->name, manager->count);
+    return true;
+}
+
+void EntityManager_HandleEventsAll(EntityManager manager, AppState *state, SDL_Event *event)
+{
+    if (!manager || !state || !event)
+    {
+        return;
+    }
+
+    for (int i = 0; i < manager->count; ++i)
+    {
+        if (manager->entities[i].handle_events)
+        {
+            manager->entities[i].handle_events(manager, state, event);
+        }
+    }
+}
+
+void EntityManager_UpdateAll(EntityManager manager, AppState *state)
+{
+    if (!manager || !state)
+    {
+        return;
+    }
+
+    for (int i = 0; i < manager->count; ++i)
+    {
+        if (manager->entities[i].update)
+        {
+            manager->entities[i].update(manager, state);
+        }
+    }
+}
+
+void EntityManager_RenderAll(EntityManager manager, AppState *state)
+{
+    if (!manager || !state)
+    {
+        return;
+    }
+
+    for (int i = 0; i < manager->count; ++i)
+    {
+        if (manager->entities[i].render)
+        {
+            manager->entities[i].render(manager, state);
+        }
+    }
+}
+
+const EntityFunctions *EntityManager_FindDefinition(EntityManager manager, const char *name)
+{
+    if (!manager || !name)
+    {
+        return NULL;
+    }
+    for (int i = 0; i < manager->count; ++i)
+    {
+        if (manager->entities[i].name && strcmp(manager->entities[i].name, name) == 0)
+        {
+            return &manager->entities[i];
+        }
+    }
+    return NULL; // Not found
 }
