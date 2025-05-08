@@ -24,13 +24,20 @@
 #define PLAYER_SPEED 1000.0f       /**< Player movement speed in pixels per second. */
 #define PLAYER_ATTACK_RANGE 100.0f /**< Maximum distance the player can initiate an attack from. */
 #define PLAYER_HEALTH_MAX 200
+#define PLAYER_DEATH_TIMER 2000 /**< Duration for death in ms. */
 
 #define PLAYER_SPRITE_FRAME_WIDTH 64.0f
 #define PLAYER_SPRITE_FRAME_HEIGHT 80.0f
 #define PLAYER_SPRITE_IDLE_ROW_Y 0.0f
 #define PLAYER_SPRITE_WALK_ROW_Y 80.0f
+#define PLAYER_SPRITE_HURT_ROW_Y 320.0f
+#define PLAYER_SPRITE_DEAD_ROW_Y 400.0f
+#define PLAYER_SPRITE_ATTACK_ROW_Y 480.0f
 #define PLAYER_SPRITE_NUM_IDLE_FRAMES 6
 #define PLAYER_SPRITE_NUM_WALK_FRAMES 6
+#define PLAYER_SPRITE_NUM_HURT_FRAMES 3
+#define PLAYER_SPRITE_NUM_DEAD_FRAMES 4
+#define PLAYER_SPRITE_NUM_ATTACK_FRAMES 6
 #define PLAYER_SPRITE_TIME_PER_FRAME 0.1f /**< Duration each animation frame is displayed. */
 
 #define RED_WIZARD_PATH "./resources/Sprites/Red_Team/Fire_Wizard/Fire_Wizard_Spiresheet.png"
@@ -59,6 +66,11 @@ typedef struct PlayerInstance
     bool is_local;            /**< True if this is the player controlled by this game instance. */
     bool is_moving;           /**< Tracks if the player is currently considered moving (for animation). */
     bool team;
+    bool dead;
+    int deathTime;
+    bool playDeathAnim;
+    bool playHurtAnim;
+    bool playAttackAnim;
     SDL_Texture *texture;
     int current_health; /**< Current health points. */
     int max_health;     /**< Maximum health points. */

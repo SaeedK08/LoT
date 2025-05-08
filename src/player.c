@@ -4,6 +4,17 @@
 
 // --- Static Helper Functions ---
 
+static void playerDeathTimer(PlayerInstance *p)
+{
+    if ((SDL_GetTicks() - p->deathTime) >= PLAYER_DEATH_TIMER)
+    {
+        SDL_Log("Player is back to life");
+        p->dead = false;
+        p->playDeathAnim = false;
+        p->current_health = p->max_health;
+    }
+}
+
 /**
  * @brief Handles input processing (movement) for the local player.
  * Reads keyboard state, calculates new position based on input and delta time,
@@ -13,7 +24,7 @@
  */
 static void handle_local_player_input(PlayerManager pm, AppState *state)
 {
-    if (!pm || pm->local_player_client_id < 0 || !state)
+    if (!pm || pm->local_player_client_id < 0 || !state || pm->players[pm->local_player_client_id].dead)
         return;
 
     PlayerInstance *p = &pm->players[pm->local_player_client_id];
@@ -114,11 +125,10 @@ static void handle_local_player_input(PlayerManager pm, AppState *state)
         p->anim_timer = 0.0f;
     }
 }
-
 /**
  * @brief Updates the animation state (current frame, sprite portion) for a specific player.
- * Only updates frame based on timer for the local player; remote player animation
- * is driven directly by network updates setting the sprite_portion.
+ * Prioritizes animations: Dead > Hurt > Attack > Walk > Idle.
+ * Handles looping for Idle/Walk and playing once for Hurt/Attack/Dead.
  * @param p Pointer to the PlayerInstance to update.
  * @param delta_time Time since the last frame.
  */
@@ -127,40 +137,102 @@ static void update_player_animation(PlayerInstance *p, float delta_time)
     if (!p || !p->active)
         return;
 
-    // Determine correct animation row based on movement state.
-    float target_row_y = p->is_moving ? PLAYER_SPRITE_WALK_ROW_Y : PLAYER_SPRITE_IDLE_ROW_Y;
-    int num_frames = p->is_moving ? PLAYER_SPRITE_NUM_WALK_FRAMES : PLAYER_SPRITE_NUM_IDLE_FRAMES;
-
-    // --- Local Player Animation ---
+    // --- Local Player Animation Logic ---
     if (p->is_local)
     {
-        // Switch animation sequence row if movement state changed.
+        float target_row_y = PLAYER_SPRITE_IDLE_ROW_Y;  // Default to Idle
+        int num_frames = PLAYER_SPRITE_NUM_IDLE_FRAMES; // Default to Idle
+        bool should_loop = true;                        // Default to looping (Idle/Walk)
+        bool is_one_shot_anim_finished = false;         // Track if Hurt/Attack/Dead is done
+
+        // --- Determine Target Animation State ---
+        if (p->dead)
+        {
+            target_row_y = PLAYER_SPRITE_DEAD_ROW_Y;
+            num_frames = PLAYER_SPRITE_NUM_DEAD_FRAMES;
+            should_loop = false;
+            is_one_shot_anim_finished = (p->sprite_portion.y == target_row_y && p->current_frame == num_frames - 1);
+        }
+        else if (p->playHurtAnim)
+        {
+            target_row_y = PLAYER_SPRITE_HURT_ROW_Y;
+            num_frames = PLAYER_SPRITE_NUM_HURT_FRAMES;
+            should_loop = false;
+            is_one_shot_anim_finished = (p->sprite_portion.y == target_row_y && p->current_frame == num_frames - 1);
+        }
+        else if (p->playAttackAnim)
+        {
+            target_row_y = PLAYER_SPRITE_ATTACK_ROW_Y;
+            num_frames = PLAYER_SPRITE_NUM_ATTACK_FRAMES;
+            should_loop = false;
+            is_one_shot_anim_finished = (p->sprite_portion.y == target_row_y && p->current_frame == num_frames - 1);
+        }
+        else if (p->is_moving) // Default moving state
+        {
+            target_row_y = PLAYER_SPRITE_WALK_ROW_Y;
+            num_frames = PLAYER_SPRITE_NUM_WALK_FRAMES;
+            should_loop = true;
+        }
+        // Default Idle state vars are already set if none of the above are true
+
+        // --- Handle Animation Transition / Reset ---
         if (p->sprite_portion.y != target_row_y)
         {
+            // Switched to a new animation type, reset frame and timer
             p->current_frame = 0;
             p->anim_timer = 0.0f;
-            p->sprite_portion.y = target_row_y;
+            p->sprite_portion.y = target_row_y; // Set the new row for the source rect
+            is_one_shot_anim_finished = false;  // New animation isn't finished yet
         }
 
-        // Advance frame based on timer.
-        p->anim_timer += delta_time;
-        if (p->anim_timer >= PLAYER_SPRITE_TIME_PER_FRAME)
+        // --- Advance Frame Timer ---
+        // Only advance timer if the animation is not a finished one-shot animation
+        if (!is_one_shot_anim_finished)
         {
-            p->anim_timer -= PLAYER_SPRITE_TIME_PER_FRAME; // Subtract, don't reset, to handle frame skips.
-            p->current_frame = (p->current_frame + 1) % num_frames;
+            p->anim_timer += delta_time;
+            if (p->anim_timer >= PLAYER_SPRITE_TIME_PER_FRAME)
+            {
+                p->anim_timer -= PLAYER_SPRITE_TIME_PER_FRAME;
+
+                if (should_loop)
+                {
+                    // Loop animation
+                    p->current_frame = (p->current_frame + 1) % num_frames;
+                }
+                else
+                {
+                    // Play-once animation: increment frame, but don't exceed last frame
+                    if (p->current_frame < num_frames - 1)
+                    {
+                        p->current_frame++;
+                    }
+                    // Check AGAIN if we just reached the last frame *after* incrementing
+                    is_one_shot_anim_finished = (p->current_frame == num_frames - 1);
+                }
+            }
         }
-        // Update the source rectangle for rendering based on the current frame.
+
+        // --- Reset One-Shot Flags if finished ---
+        if (is_one_shot_anim_finished)
+        {
+            if (p->playHurtAnim)
+                p->playHurtAnim = false;
+            if (p->playAttackAnim)
+                p->playAttackAnim = false;
+        }
+
+        // --- Update Source Rect ---
         p->sprite_portion.x = (float)p->current_frame * PLAYER_SPRITE_FRAME_WIDTH;
         p->sprite_portion.w = PLAYER_SPRITE_FRAME_WIDTH;
         p->sprite_portion.h = PLAYER_SPRITE_FRAME_HEIGHT;
+        // Y value was potentially set during state transition
     }
     // --- Remote Player Animation ---
     else
     {
-        // For remote players, sprite_portion.x/y are set directly by network updates.
-        // Just ensure the dimensions are correct.
         p->sprite_portion.w = PLAYER_SPRITE_FRAME_WIDTH;
         p->sprite_portion.h = PLAYER_SPRITE_FRAME_HEIGHT;
+        p->dead = (fabsf(p->sprite_portion.y - PLAYER_SPRITE_DEAD_ROW_Y) < 0.1f);
     }
 }
 
@@ -177,6 +249,11 @@ static void render_single_player(PlayerManager pm, PlayerInstance *p, AppState *
     if (!pm || !p || !p->active || !pm->player_texture || !state || !state->camera_state)
     {
         return;
+    }
+
+    if (p->dead)
+    {
+        playerDeathTimer(p);
     }
 
     CameraState camera = state->camera_state;
@@ -257,7 +334,7 @@ static void player_manager_event_callback(EntityManager manager, AppState *state
     (void)manager;
     PlayerManager pm = state ? state->player_manager : NULL;
     // Ensure local player exists and required managers are available.
-    if (!pm || pm->local_player_client_id < 0 || !state || !state->attack_manager || !state->camera_state || !state->net_client_state)
+    if (!pm || pm->local_player_client_id < 0 || !state || !state->attack_manager || !state->camera_state || !state->net_client_state || pm->players[pm->local_player_client_id].dead)
     {
         return;
     }
@@ -294,6 +371,7 @@ static void player_manager_event_callback(EntityManager manager, AppState *state
 
         if (distance <= PLAYER_ATTACK_RANGE)
         {
+            state->player_manager->players[state->player_manager->local_player_client_id].playAttackAnim = true;
             // Send request to the network client module to inform the server.
             NetClient_SendSpawnAttackRequest(state->net_client_state, PLAYER_ATTACK_TYPE_FIREBALL, target_world_x, target_world_y, local_player->team);
         }
@@ -422,6 +500,7 @@ bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
     current_player->current_frame = 0;
     current_player->anim_timer = 0.0f;
     current_player->texture = pm->player_texture;
+    current_player->max_health = PLAYER_HEALTH_MAX;
     current_player->current_health = PLAYER_HEALTH_MAX;
 
     // Initial spawn position.
@@ -554,6 +633,7 @@ void damagePlayer(AppState state, int playerIndex, float damageValue, bool sendT
     if (state.player_manager->players[playerIndex].current_health > 0)
     {
         state.player_manager->players[playerIndex].current_health -= damageValue;
+        state.player_manager->players[playerIndex].playHurtAnim = true;
         SDL_Log("Player %d health %d", playerIndex, state.player_manager->players[playerIndex].current_health);
     }
 
@@ -562,8 +642,11 @@ void damagePlayer(AppState state, int playerIndex, float damageValue, bool sendT
         NetClient_SendDamagePlayerRequest(state.net_client_state, playerIndex, damageValue);
     }
 
-    if (state.player_manager->players[playerIndex].current_health <= 0)
+    if (state.player_manager->players[playerIndex].current_health <= 0 && !state.player_manager->players[playerIndex].dead)
     {
+        state.player_manager->players[playerIndex].dead = true;
+        state.player_manager->players[playerIndex].playDeathAnim = true;
+        state.player_manager->players[playerIndex].deathTime = SDL_GetTicks();
         SDL_Log("Player %d Destroyed", playerIndex);
     }
 }
