@@ -39,8 +39,8 @@ typedef struct TowerInstance
     SDL_FRect rect;              /**< Rect for this tower. */
     SDL_FPoint position;         /**< World position (center or base). */
     SDL_Texture *texture;        /**< Texture for this tower. */
-    int current_health;          /**< Current health points. */
-    int max_health;              /**< Maximum health points. */
+    float current_health;          /**< Current health points. */
+    float max_health;              /**< Maximum health points. */
     float attack_cooldown_timer; /**< Time remaining until the next attack can occur. */
     bool is_active;              /**< Flag indicating if the tower is currently functional. */
 } TowerInstance;
@@ -84,4 +84,4 @@ void TowerManager_Destroy(TowerManagerState tm_state);
  * @param damageValue The amount of damage to apply.
  * @param sendToServer true if the local client is the one that hit the tower.
  */
-void damageTower(AppState state, int towerIndex, float damageValue, bool sendToServer);
+void damageTower(AppState state, int towerIndex, float damageValue, bool sendToServer, float current_health);

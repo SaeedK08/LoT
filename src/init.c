@@ -44,8 +44,12 @@ static void cleanup_on_failure(AppState *state, const char *failure_stage)
   {
     NetClient_Destroy(state->net_client_state);
   }
+  if (strcmp(failure_stage, "NetClient_Init") != 0 && strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0 && strcmp(failure_stage, "MinionManager_Init") != 0)
+  {
+    MinionManager_Destroy(state->minion_manager);
+  }
   // Only attempt server cleanup if it was supposed to be initialized and didn't fail before client init
-  if (state->is_server && state->net_server_state && strcmp(failure_stage, "NetServer_Init") != 0 && strcmp(failure_stage, "NetClient_Init") != 0 && strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0)
+  if (state->is_server && state->net_server_state && strcmp(failure_stage, "NetServer_Init") != 0 && strcmp(failure_stage, "NetClient_Init") != 0 && strcmp(failure_stage, "Map_Init") != 0 && strcmp(failure_stage, "Base_Init") != 0 && strcmp(failure_stage, "Tower_Init") != 0 && strcmp(failure_stage, "Attack_Init") != 0 && strcmp(failure_stage, "PlayerManager_Init") != 0 && strcmp(failure_stage, "Camera_Init") != 0 && strcmp(failure_stage, "MinionManager_Init") != 0)
   {
     NetServer_Destroy(state->net_server_state);
   }
@@ -227,6 +231,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   if (!state->player_manager)
   {
     cleanup_on_failure(state, "PlayerManager_Init");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
+  state->minion_manager = MinionManager_Init(state);
+  if (!state->minion_manager)
+  {
+    cleanup_on_failure(state, "MinionManager_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
   }

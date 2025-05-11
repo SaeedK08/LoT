@@ -21,6 +21,7 @@ typedef enum MessageType
     MSG_TYPE_C_DAMAGE_PLAYER = 4, /**< Client requests to damage a player. */
     MSG_TYPE_C_DAMAGE_TOWER = 5,  /**< Client requests to damage a tower. */
     MSG_TYPE_C_DAMAGE_BASE = 6,   /**< Client requests to damage a base. */
+    MSG_TYPE_C_MINION_STATE = 7,   /**< Client sends minon state update. */
 
     MSG_TYPE_C_MATCH_RESULT = 89, /**< Client sends the match result. */
 
@@ -31,6 +32,7 @@ typedef enum MessageType
     MSG_TYPE_S_DAMAGE_PLAYER = 104, /**< Server confirms/broadcasts damage to a player. */
     MSG_TYPE_S_DAMAGE_TOWER = 105,  /**< Server confirms/broadcasts damage to a tower. */
     MSG_TYPE_S_DAMAGE_BASE = 106,   /**< Server confirms/broadcasts damage to a basea. */
+    MSG_TYPE_S_MINION_STATE = 107,   /**< Serever confirms/broadcast minon's state. */
 
     MSG_TYPE_S_MATCH_RESULT = 189, /**< Server confirms/broadcasts the match result. */
 
@@ -89,6 +91,21 @@ typedef struct Msg_PlayerStateData
     bool team;
     int current_health;
 } Msg_PlayerStateData;
+
+/**
+ * @brief Data structure for MSG_TYPE_C_MINION_STATE and MSG_TYPE_S_MINION_STATE.
+ * Used for client updates to server and server broadcasts to clients.
+ */
+typedef struct Msg_MinionStateData
+{
+    uint8_t message_type;     /**< MSG_TYPE_C_MINION_STATE or MSG_TYPE_S_MINION_STATE. */
+    uint8_t client_id;        /**< The ID of the player that this minion belongs to. */
+    SDL_FPoint position;      /**< Current world position (x, y). */
+    SDL_FRect sprite_portion; /**< Current source rect for animation frame. */
+    SDL_FlipMode flip_mode;   /**< Current horizontal flip state. */
+    bool team;
+    int current_health;
+} Msg_MinionStateData;
 
 /**
  * @brief Data structure for MSG_TYPE_S_PLAYER_DISCONNECT.
@@ -160,6 +177,7 @@ typedef struct Msg_DamageTower
     uint8_t message_type; /**< Should be MSG_TYPE_S_DAMAGE_TOWER. */
     int towerIndex;       /**< The index of the tower that got damaged. */
     float damageValue;    /**< The amount of damage that the tower got. */
+    float current_health  /**<  The current health of tower after receviving the message from server*/
 } Msg_DamageTower;
 
 /**

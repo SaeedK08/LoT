@@ -155,7 +155,7 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                             if (SDL_PointInRectFloat(&attack->position, &tempTower.rect))
                             {
                                 SDL_Log("Attack Hit Tower %d", i);
-                                damageTower(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
+                                damageTower(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
                             }
                         }
                     }

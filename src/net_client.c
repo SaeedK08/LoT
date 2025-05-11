@@ -187,6 +187,25 @@ static void internal_send_local_player_state(NetClientState nc_state, AppState *
 }
 
 /**
+ *  @brief Sends the local minion's current state to the server.
+ *  @param nc_state The NetClientState instance.
+ *  @param state The main AppState instance.
+ */
+static void internal_send_local_minion_state(NetClientState nc_state, AppState *state) {
+    if (!nc_state || nc_state->network_status != CLIENT_STATUS_CONNECTED || nc_state->my_client_id < 0 || !state || !state->minion_manager)
+    {
+        return;
+    }
+
+    Msg_MinionStateData data;
+    if (!MinionManager_GetLocalMinionState(state->minion_manager, &data))
+    {
+        return;
+    }
+    NetClient_SendBuffer(nc_state, &data, sizeof(Msg_MinionStateData));
+}
+
+/**
  * @brief Processes a single message received from the server based on its type.
  * @param nc_state The NetClientState instance.
  * @param buffer Pointer to the received data buffer.
@@ -230,6 +249,12 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
                 NetClient_Destroy(nc_state);
                 return;
             }
+            if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
+                NetClient_Destroy(nc_state);
+                return;
+            }
         }
         else
         {
@@ -250,6 +275,22 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         else
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_PLAYER_STATE msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_PlayerStateData));
+        }
+        break;
+
+    case MSG_TYPE_S_MINION_STATE: 
+        if (bytesReceived >= (int)sizeof(Msg_MinionStateData))
+        {
+            Msg_MinionStateData state_data;
+            memcpy(&state_data, buffer, sizeof(Msg_MinionStateData));
+            if (state->minion_manager)
+            {
+                MinionManager_UpdateRemoteMinion(state->minion_manager, &state_data);
+            }
+        }
+        else 
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_MINION_STATE msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_MinionStateData));
         }
         break;
 
@@ -325,7 +366,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             memcpy(&state_data, buffer, sizeof(Msg_DamageTower));
             if (state->tower_manager)
             {
-                damageTower(*state, state_data.towerIndex, state_data.damageValue, false);
+                damageTower(*state, state_data.towerIndex, state_data.damageValue, false, state_data.current_health);
             }
         }
         else
@@ -455,6 +496,7 @@ static void internal_handle_server_communication(NetClientState nc_state, AppSta
     if (nc_state->my_client_id >= 0 && current_time > nc_state->last_state_send_time + STATE_UPDATE_INTERVAL_MS)
     {
         internal_send_local_player_state(nc_state, state);
+        internal_send_local_minion_state(nc_state, state);
         // Check status again after send, as it might trigger disconnect
         if (nc_state->network_status == CLIENT_STATUS_CONNECTED)
         {
@@ -623,7 +665,7 @@ bool NetClient_SendDamagePlayerRequest(NetClientState nc_state, int playerIndex,
     return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_DamagePlayer));
 }
 
-bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue)
+bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue, float current_health)
 {
     if (!NetClient_IsConnected(nc_state))
     {
@@ -634,6 +676,7 @@ bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, f
     msg.message_type = MSG_TYPE_C_DAMAGE_TOWER;
     msg.towerIndex = towerIndex;
     msg.damageValue = damageValue;
+    msg.current_health = current_health;
 
     return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_DamageTower));
 }

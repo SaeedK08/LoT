@@ -313,21 +313,29 @@ void TowerManager_Destroy(TowerManagerState tm_state)
     }
 }
 
-void damageTower(AppState state, int towerIndex, float damageValue, bool sendToServer)
+void damageTower(AppState state, int towerIndex, float damageValue, bool sendToServer, float current_health)
 {
-    if (state.tower_manager->towers[towerIndex].current_health > 0)
+    // if (state.tower_manager->towers[towerIndex].current_health > 0)
+    // {
+    //     state.tower_manager->towers[towerIndex].current_health -= damageValue;
+    //     SDL_Log("Tower %d health %f", towerIndex, state.tower_manager->towers[towerIndex].current_health);
+    // }
+    if (!sendToServer)
+    {   
+        state.tower_manager->towers[towerIndex].current_health = current_health;
+        SDL_Log("Received tower index %d from server | current health after taking damange %f\n", towerIndex, state.tower_manager->towers[towerIndex].current_health);
+    }
+    if (sendToServer && state.tower_manager->towers[towerIndex].current_health > 0)
     {
         state.tower_manager->towers[towerIndex].current_health -= damageValue;
-        SDL_Log("Tower %d health %d", towerIndex, state.tower_manager->towers[towerIndex].current_health);
-    }
-
-    if (sendToServer)
-    {
-        NetClient_SendDamageTowerRequest(state.net_client_state, towerIndex, damageValue);
+        current_health = state.tower_manager->towers[towerIndex].current_health;
+        SDL_Log("Tower %d health %f", towerIndex, state.tower_manager->towers[towerIndex].current_health);
+        NetClient_SendDamageTowerRequest(state.net_client_state, towerIndex, damageValue, current_health);
     }
 
     if (state.tower_manager->towers[towerIndex].current_health <= 0)
     {
+        if (!sendToServer) SDL_Log("\n\n[client] Received Destroyed Tower.\n\n");
         state.tower_manager->towers[towerIndex].texture = state.tower_manager->destroyed_texture;
         SDL_Log("Tower %d Destroyed", towerIndex);
     }

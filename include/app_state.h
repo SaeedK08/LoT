@@ -8,6 +8,7 @@
 typedef struct CameraState_s *CameraState;
 typedef struct MapState_s *MapState;
 typedef struct PlayerManager_s *PlayerManager;
+typedef struct MinionManager_s *MinionManager;
 typedef struct AttackManager_s *AttackManager;
 typedef struct NetClientState_s *NetClientState;
 typedef struct NetServerState_s *NetServerState;
@@ -41,6 +42,7 @@ typedef struct AppState
     MapState map_state;
     CameraState camera_state;
     PlayerManager player_manager;
+    MinionManager minion_manager;
     AttackManager attack_manager;
     NetClientState net_client_state;
     NetServerState net_server_state; /**< NULL if not running as server. */

@@ -3,6 +3,7 @@
 // --- Includes ---
 #include "../include/common.h"
 #include "../include/player.h"
+#include "../include/minion.h"
 #include "../include/camera.h"
 #include "../include/attack.h"
 #include "../include/entity.h"
@@ -65,7 +66,7 @@ bool NetClient_SendDamagePlayerRequest(NetClientState nc_state, int playerIndex,
  * @param damageValue The amount of damage to apply to the tower.
  * @return True if the request was sent successfully, false otherwise (e.g., not connected).
  */
-bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue);
+bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue, float current_health);
 
 /**
  * @brief Sends a request to the server to damage a base.
