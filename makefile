@@ -33,7 +33,7 @@ LDFLAGS := -L$(SDL_LIB_DIR)
 
 # Libraries to link
 # Note the order can be important
-LDLIBS := -lmingw32 -lSDL3 -lSDL3_net -lSDL3_image
+LDLIBS := -lmingw32 -lSDL3 -lSDL3_net -lSDL3_image -lSDL3_ttf
 
 # --- Files ---
 

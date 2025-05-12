@@ -12,6 +12,7 @@ static void playerDeathTimer(PlayerInstance *p)
         p->dead = false;
         p->playDeathAnim = false;
         p->current_health = p->max_health;
+        p->position = p->team ? (SDL_FPoint){BASE_RED_POS_X + 300, BUILDINGS_POS_Y} : (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
     }
 }
 

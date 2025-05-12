@@ -80,29 +80,32 @@ static void cleanup_on_failure(AppState *state, const char *failure_stage)
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
   // --- Argument Parsing ---
-  bool is_server_arg;
-  bool team_arg;
+  bool is_server_arg = true;                   // Default to server unless --client is specified
+  bool team_arg = BLUE_TEAM;                   // Default team
+  const char *hostname_arg = DEFAULT_HOSTNAME; // Default hostname
 
-  if (argc <= 1) // Defaults if no args
+  for (int i = 1; i < argc; ++i)
   {
-    is_server_arg = true;
-    team_arg = BLUE_TEAM;
-  }
-  else
-  {
-    for (int i = 1; i < argc; ++i)
+    if (!strcmp(argv[i], "--client"))
     {
-      if (!strcmp(argv[i], "--server"))
-      {
-        is_server_arg = true;
-        break;
-      }
-      if (!strcmp(argv[i], "--red"))
-      {
-        team_arg = RED_TEAM;
-        break;
-      }
+      is_server_arg = false;
     }
+    else if (!strcmp(argv[i], "--red"))
+    {
+      team_arg = RED_TEAM;
+    }
+    else if (!strcmp(argv[i], "--host") && (i + 1 < argc))
+    {
+      hostname_arg = argv[i + 1];
+      i++;
+    }
+  }
+
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Running as %s.", is_server_arg ? "server" : "client");
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Playing for team %s.", team_arg ? "RED" : "BLUE");
+  if (!is_server_arg)
+  {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Connecting to host: %s", hostname_arg);
   }
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Running as %s.", is_server_arg ? "server (default)" : "client");
@@ -111,6 +114,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   // --- State Allocation ---
   AppState *state = (AppState *)SDL_calloc(1, sizeof(AppState));
   state->team = team_arg;
+
   if (!state)
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] Failed to allocate AppState.");
@@ -186,8 +190,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
       return SDL_APP_FAILURE;
     }
   }
+
   // Always initialize the client module
-  state->net_client_state = NetClient_Init(state);
+  state->net_client_state = NetClient_Init(state, hostname_arg);
   if (!state->net_client_state)
   {
     cleanup_on_failure(state, "NetClient_Init");
@@ -249,6 +254,20 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     cleanup_on_failure(state, "Camera_Init");
     *appstate = NULL;
     return SDL_APP_FAILURE;
+  }
+
+  state->HUD_manager = HUDManager_Init(state);
+  if (!state->HUD_manager)
+  {
+    cleanup_on_failure(state, "HUDManager_Init");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
+  state->currentGameState = GAME_STATE_LOBBY;
+  if (state->is_server)
+  {
+    SDL_StartTextInput(state->window);
   }
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Init] Application initialized successfully.");

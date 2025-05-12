@@ -40,7 +40,7 @@ void Camera_Destroy(CameraState camera_state);
  * @param camera_state The CameraState instance to update.
  * @param state Pointer to the main AppState.
  */
-void Camera_Update(CameraState camera_state, AppState *state);
+void Camera_Render(CameraState camera_state, AppState *state);
 
 /**
  * @brief Gets the current X coordinate of the camera's top-left corner.

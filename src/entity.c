@@ -151,7 +151,10 @@ void EntityManager_RenderAll(EntityManager manager, AppState *state)
     {
         if (manager->entities[i].render)
         {
-            manager->entities[i].render(manager, state);
+            if (state->currentGameState == GAME_STATE_PLAYING || !strcmp(manager->entities[i].name, "HUD_manager"))
+            {
+                manager->entities[i].render(manager, state);
+            }
         }
     }
 }

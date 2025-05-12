@@ -38,6 +38,7 @@ typedef struct BaseInstance
     SDL_Texture *texture; /**< Texture for this base. */
     int current_health;   /**< Current health points. */
     int max_health;       /**< Maximum health points. */
+    bool immune;
 } BaseInstance;
 
 /**

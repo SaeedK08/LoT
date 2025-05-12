@@ -255,27 +255,37 @@ TowerManagerState TowerManager_Init(AppState *state)
             .current_health = TOWER_HEALTH_MAX,
             .is_active = true,
             .attack_cooldown_timer = 0.0f,
-            .team = RED_TEAM};
+            .team = RED_TEAM,
+            .teamFirstTower = (i == 1) ? true : false,
+            .immune = (i == 0) ? true : false,
+        };
 
-        tm_state->towers[i].rect = (SDL_FRect){(TOWER_RED_1_X + i * TOWER_DISTANCE_X) - TOWER_RENDER_WIDTH / 2.0f,
-                                               BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
-                                               TOWER_RENDER_WIDTH,
-                                               TOWER_RENDER_HEIGHT};
+        tm_state->towers[i].rect = (SDL_FRect){
+            (TOWER_RED_1_X + i * TOWER_DISTANCE_X) - TOWER_RENDER_WIDTH / 2.0f,
+            BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
+            TOWER_RENDER_WIDTH,
+            TOWER_RENDER_HEIGHT};
     }
+
     for (int i = MAX_TOWERS_PER_TEAM; i < MAX_TOTAL_TOWERS; i++)
     {
-        tm_state->towers[i] = (TowerInstance){.position = {TOWER_BLUE_1_X - (i - MAX_TOWERS_PER_TEAM) * TOWER_DISTANCE_X, BUILDINGS_POS_Y},
-                                              .texture = tm_state->blue_texture,
-                                              .max_health = TOWER_HEALTH_MAX,
-                                              .current_health = TOWER_HEALTH_MAX,
-                                              .is_active = true,
-                                              .attack_cooldown_timer = 0.0f,
-                                              .team = BLUE_TEAM};
+        tm_state->towers[i] = (TowerInstance){
+            .position = {TOWER_BLUE_1_X - (i - MAX_TOWERS_PER_TEAM) * TOWER_DISTANCE_X, BUILDINGS_POS_Y},
+            .texture = tm_state->blue_texture,
+            .max_health = TOWER_HEALTH_MAX,
+            .current_health = TOWER_HEALTH_MAX,
+            .is_active = true,
+            .attack_cooldown_timer = 0.0f,
+            .team = BLUE_TEAM,
+            .teamFirstTower = (i == 3) ? true : false,
+            .immune = (i == 2) ? true : false,
+        };
 
-        tm_state->towers[i].rect = (SDL_FRect){(TOWER_BLUE_1_X - (i - MAX_TOWERS_PER_TEAM) * TOWER_DISTANCE_X) - TOWER_RENDER_WIDTH / 2.0f,
-                                               BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
-                                               TOWER_RENDER_WIDTH,
-                                               TOWER_RENDER_HEIGHT};
+        tm_state->towers[i].rect = (SDL_FRect){
+            (TOWER_BLUE_1_X - (i - MAX_TOWERS_PER_TEAM) * TOWER_DISTANCE_X) - TOWER_RENDER_WIDTH / 2.0f,
+            BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
+            TOWER_RENDER_WIDTH,
+            TOWER_RENDER_HEIGHT};
     }
 
     tm_state->tower_count = MAX_TOTAL_TOWERS;
@@ -315,28 +325,40 @@ void TowerManager_Destroy(TowerManagerState tm_state)
 
 void damageTower(AppState state, int towerIndex, float damageValue, bool sendToServer, float current_health)
 {
-    // if (state.tower_manager->towers[towerIndex].current_health > 0)
-    // {
-    //     state.tower_manager->towers[towerIndex].current_health -= damageValue;
-    //     SDL_Log("Tower %d health %f", towerIndex, state.tower_manager->towers[towerIndex].current_health);
-    // }
-    if (!sendToServer)
-    {   
-        state.tower_manager->towers[towerIndex].current_health = current_health;
-        SDL_Log("Received tower index %d from server | current health after taking damange %f\n", towerIndex, state.tower_manager->towers[towerIndex].current_health);
-    }
-    if (sendToServer && state.tower_manager->towers[towerIndex].current_health > 0)
+    TowerInstance *tempTower = &state.tower_manager->towers[towerIndex];
+
+    if (tempTower->immune)
     {
-        state.tower_manager->towers[towerIndex].current_health -= damageValue;
-        current_health = state.tower_manager->towers[towerIndex].current_health;
-        SDL_Log("Tower %d health %f", towerIndex, state.tower_manager->towers[towerIndex].current_health);
+        return;
+    }
+
+    if (!sendToServer)
+    {
+        tempTower->current_health = current_health;
+        // SDL_Log("Received tower index %d from server | current health after taking damange %f\n", towerIndex, tempTower->current_health);
+    }
+    if (sendToServer && tempTower->current_health > 0)
+    {
+        tempTower->current_health -= damageValue;
+        current_health = tempTower->current_health;
+        SDL_Log("Tower %d health %f", towerIndex, tempTower->current_health);
         NetClient_SendDamageTowerRequest(state.net_client_state, towerIndex, damageValue, current_health);
     }
 
-    if (state.tower_manager->towers[towerIndex].current_health <= 0)
+    if (tempTower->current_health <= 0)
     {
-        if (!sendToServer) SDL_Log("\n\n[client] Received Destroyed Tower.\n\n");
-        state.tower_manager->towers[towerIndex].texture = state.tower_manager->destroyed_texture;
+        if (!sendToServer)
+            SDL_Log("\n\n[client] Received Destroyed Tower.\n\n");
+        tempTower->texture = state.tower_manager->destroyed_texture;
         SDL_Log("Tower %d Destroyed", towerIndex);
+
+        if (tempTower->teamFirstTower)
+        {
+            state.tower_manager->towers[towerIndex - 1].immune = false;
+        }
+        else
+        {
+            state.base_manager->bases[tempTower->team].immune = false;
+        }
     }
 }

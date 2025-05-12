@@ -12,6 +12,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_ttf/SDL_ttf.h>
+#include <SDL3_ttf/SDL_textengine.h>
 
 // --- Project Includes ---
 #include "../include/app_state.h"
@@ -22,7 +24,7 @@
 #define MAX_NAME_LENGTH 64
 #define BUFFER_SIZE 512
 #define SERVER_PORT 8080
-#define HOSTNAME "localhost"
+#define DEFAULT_HOSTNAME "localhost"
 #define MAX_CLIENTS 10
 #define BLUE_TEAM 0
 #define RED_TEAM 1

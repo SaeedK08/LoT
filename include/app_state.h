@@ -4,6 +4,16 @@
 #include <SDL3/SDL.h>
 #include <stdbool.h>
 
+/**
+ * @brief Enum defining different game states.
+ */
+typedef enum GameState
+{
+    GAME_STATE_LOBBY = 1,
+    GAME_STATE_PLAYING = 2,
+    GAME_STATE_FINISHED = 3,
+} GameState;
+
 // --- Forward Declarations for ADT Opaque Pointer Types ---
 typedef struct CameraState_s *CameraState;
 typedef struct MapState_s *MapState;
@@ -15,6 +25,7 @@ typedef struct NetServerState_s *NetServerState;
 typedef struct EntityManager_s *EntityManager;
 typedef struct BaseManagerState_s *BaseManagerState;
 typedef struct TowerManagerState_s *TowerManagerState;
+typedef struct HUDManager_s *HUDManager;
 
 // --- Main Application State Structure ---
 
@@ -36,6 +47,7 @@ typedef struct AppState
     bool is_server;
     bool quit_requested;
     bool team;
+    GameState currentGameState;
 
     // --- Module State Pointers (ADTs) ---
     EntityManager entity_manager;
@@ -48,4 +60,5 @@ typedef struct AppState
     NetServerState net_server_state; /**< NULL if not running as server. */
     BaseManagerState base_manager;
     TowerManagerState tower_manager;
+    HUDManager HUD_manager;
 } AppState;

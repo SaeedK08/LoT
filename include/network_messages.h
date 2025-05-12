@@ -21,7 +21,7 @@ typedef enum MessageType
     MSG_TYPE_C_DAMAGE_PLAYER = 4, /**< Client requests to damage a player. */
     MSG_TYPE_C_DAMAGE_TOWER = 5,  /**< Client requests to damage a tower. */
     MSG_TYPE_C_DAMAGE_BASE = 6,   /**< Client requests to damage a base. */
-    MSG_TYPE_C_MINION_STATE = 7,   /**< Client sends minon state update. */
+    MSG_TYPE_C_MINION_STATE = 7,  /**< Client sends minon state update. */
 
     MSG_TYPE_C_MATCH_RESULT = 89, /**< Client sends the match result. */
 
@@ -32,10 +32,10 @@ typedef enum MessageType
     MSG_TYPE_S_DAMAGE_PLAYER = 104, /**< Server confirms/broadcasts damage to a player. */
     MSG_TYPE_S_DAMAGE_TOWER = 105,  /**< Server confirms/broadcasts damage to a tower. */
     MSG_TYPE_S_DAMAGE_BASE = 106,   /**< Server confirms/broadcasts damage to a basea. */
-    MSG_TYPE_S_MINION_STATE = 107,   /**< Serever confirms/broadcast minon's state. */
+    MSG_TYPE_S_MINION_STATE = 107,  /**< Serever confirms/broadcast minon's state. */
 
-    MSG_TYPE_S_MATCH_RESULT = 189, /**< Server confirms/broadcasts the match result. */
-
+    MSG_TYPE_S_GAME_START = 188,
+    MSG_TYPE_S_GAME_RESULT = 189,       /**< Server confirms/broadcasts the match result. */
     MSG_TYPE_S_DESTROY_OBJECT = 198,    /**< Server informs clients an object was destroyed. */
     MSG_TYPE_S_PLAYER_DISCONNECT = 199, /**< Server informs clients a player disconnected. */
 } MessageType;

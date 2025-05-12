@@ -24,7 +24,7 @@ typedef struct NetClientState_s *NetClientState;
  * @return A new NetClientState instance on success, NULL on failure.
  * @sa NetClient_Destroy
  */
-NetClientState NetClient_Init(AppState *state);
+NetClientState NetClient_Init(AppState *state, const char *hostname);
 
 /**
  * @brief Destroys the NetClientState instance and closes any active connection.

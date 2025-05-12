@@ -6,6 +6,7 @@
 #include "../include/player.h"
 #include "../include/attack.h"
 #include "../include/entity.h"
+#include "../include/base.h"
 
 // --- Constants ---
 #define MAX_TOWERS_PER_TEAM 2
@@ -39,10 +40,12 @@ typedef struct TowerInstance
     SDL_FRect rect;              /**< Rect for this tower. */
     SDL_FPoint position;         /**< World position (center or base). */
     SDL_Texture *texture;        /**< Texture for this tower. */
-    float current_health;          /**< Current health points. */
-    float max_health;              /**< Maximum health points. */
+    float current_health;        /**< Current health points. */
+    float max_health;            /**< Maximum health points. */
     float attack_cooldown_timer; /**< Time remaining until the next attack can occur. */
     bool is_active;              /**< Flag indicating if the tower is currently functional. */
+    bool teamFirstTower;
+    bool immune;
 } TowerInstance;
 
 /**

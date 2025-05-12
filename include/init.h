@@ -19,3 +19,5 @@
 #include "../include/render.h"
 #include "../include/iterate.h"
 #include "../include/cleanup.h"
+#include "../include/app_state.h"
+#include "../include/hud.h"

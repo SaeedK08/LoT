@@ -23,6 +23,7 @@ struct NetClientState_s
     ClientNetworkStatus network_status;      /**< Current connection status. */
     int my_client_id;                        /**< Client ID assigned by the server, or -1 if not assigned. */
     Uint64 last_state_send_time;             /**< Timestamp of the last player state message sent. */
+    char hostname[MAX_NAME_LENGTH];          /**< Hostname to connect to, provided by the user or default. */
 };
 
 // --- Constants ---
@@ -64,17 +65,20 @@ static void internal_attempt_resolve(NetClientState nc_state)
     if (!nc_state || nc_state->network_status != CLIENT_STATUS_DISCONNECTED)
         return;
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Attempting to resolve hostname: %s", HOSTNAME);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Attempting to resolve hostname: %s", nc_state->hostname);
     if (nc_state->server_address_resolved)
     {
         SDLNet_UnrefAddress(nc_state->server_address_resolved);
         nc_state->server_address_resolved = NULL;
     }
 
-    nc_state->server_address_resolved = SDLNet_ResolveHostname(HOSTNAME);
+    // Use the hostname stored in nc_state
+    nc_state->server_address_resolved = SDLNet_ResolveHostname(nc_state->hostname);
     if (nc_state->server_address_resolved == NULL)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] SDLNet_ResolveHostname failed immediately: %s", SDL_GetError());
+        // This is a critical error during synchronous part of resolution
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] SDLNet_ResolveHostname failed immediately for '%s': %s", nc_state->hostname, SDL_GetError());
+        // Consider further error handling, e.g. setting status to an error state or retrying
     }
     else
     {
@@ -191,7 +195,8 @@ static void internal_send_local_player_state(NetClientState nc_state, AppState *
  *  @param nc_state The NetClientState instance.
  *  @param state The main AppState instance.
  */
-static void internal_send_local_minion_state(NetClientState nc_state, AppState *state) {
+static void internal_send_local_minion_state(NetClientState nc_state, AppState *state)
+{
     if (!nc_state || nc_state->network_status != CLIENT_STATUS_CONNECTED || nc_state->my_client_id < 0 || !state || !state->minion_manager)
     {
         return;
@@ -236,30 +241,36 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             memcpy(&welcome_data, buffer, sizeof(Msg_WelcomeData));
             nc_state->my_client_id = welcome_data.assigned_client_id;
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_WELCOME, assigned myClientID = %d", nc_state->my_client_id);
-
-            if (!state->player_manager || !state->camera_state)
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] PlayerManager or CameraState is NULL when processing S_WELCOME.");
-                NetClient_Destroy(nc_state);
-                return;
-            }
-            if (!PlayerManager_SetLocalPlayerID(state->player_manager, nc_state->my_client_id))
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to set local player ID %d in PlayerManager. Error: %s", nc_state->my_client_id, SDL_GetError());
-                NetClient_Destroy(nc_state);
-                return;
-            }
-            if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
-                NetClient_Destroy(nc_state);
-                return;
-            }
         }
         else
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_WELCOME (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_WelcomeData));
         }
+        break;
+
+    case MSG_TYPE_S_GAME_START:
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_GAME_START, assigned myClientID = %d", nc_state->my_client_id);
+        state->currentGameState = GAME_STATE_PLAYING;
+
+        if (!state->player_manager || !state->camera_state)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] PlayerManager or CameraState is NULL when processing S_WELCOME.");
+            NetClient_Destroy(nc_state);
+            return;
+        }
+        if (!PlayerManager_SetLocalPlayerID(state->player_manager, nc_state->my_client_id))
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to set local player ID %d in PlayerManager. Error: %s", nc_state->my_client_id, SDL_GetError());
+            NetClient_Destroy(nc_state);
+            return;
+        }
+        if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
+            NetClient_Destroy(nc_state);
+            return;
+        }
+
         break;
 
     case MSG_TYPE_S_PLAYER_STATE:
@@ -278,7 +289,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         }
         break;
 
-    case MSG_TYPE_S_MINION_STATE: 
+    case MSG_TYPE_S_MINION_STATE:
         if (bytesReceived >= (int)sizeof(Msg_MinionStateData))
         {
             Msg_MinionStateData state_data;
@@ -288,7 +299,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
                 MinionManager_UpdateRemoteMinion(state->minion_manager, &state_data);
             }
         }
-        else 
+        else
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_MINION_STATE msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_MinionStateData));
         }
@@ -391,12 +402,13 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         }
         break;
 
-    case MSG_TYPE_S_MATCH_RESULT:
+    case MSG_TYPE_S_GAME_RESULT:
         if (bytesReceived >= (int)sizeof(Msg_MatchResult))
         {
             Msg_MatchResult state_data;
             memcpy(&state_data, buffer, sizeof(Msg_MatchResult));
             SDL_Log("\n---\nMatch Won by team %s\n---\n", state_data.winningTeam ? "RED" : "BLUE");
+            state->currentGameState = GAME_STATE_FINISHED;
         }
         else
         {
@@ -561,7 +573,7 @@ static void net_client_cleanup_callback(EntityManager manager, AppState *state)
 
 // --- Public API Function Implementations ---
 
-NetClientState NetClient_Init(AppState *state)
+NetClientState NetClient_Init(AppState *state, const char *hostname)
 {
     if (!state || !state->entity_manager)
     {
@@ -575,6 +587,10 @@ NetClientState NetClient_Init(AppState *state)
         SDL_OutOfMemory();
         return NULL;
     }
+
+    // Copy the provided hostname to the struct
+    strncpy(nc_state->hostname, hostname, MAX_NAME_LENGTH - 1);
+    nc_state->hostname[MAX_NAME_LENGTH - 1] = '\0'; // Ensure null-termination
 
     nc_state->network_status = CLIENT_STATUS_DISCONNECTED;
     nc_state->server_address_resolved = NULL;

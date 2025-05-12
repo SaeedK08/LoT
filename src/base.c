@@ -145,6 +145,7 @@ BaseManagerState BaseManager_Init(AppState *state)
   bm_state->bases[0].current_health = BASE_HEALTH_MAX;
   bm_state->bases[0].rect = (SDL_FRect){BASE_BLUE_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
   bm_state->bases[0].team = BLUE_TEAM;
+  bm_state->bases[0].immune = true;
 
   bm_state->bases[1].position = (SDL_FPoint){BASE_RED_POS_X, BUILDINGS_POS_Y};
   bm_state->bases[1].texture = bm_state->red_texture;
@@ -152,6 +153,7 @@ BaseManagerState BaseManager_Init(AppState *state)
   bm_state->bases[1].current_health = BASE_HEALTH_MAX;
   bm_state->bases[1].rect = (SDL_FRect){BASE_RED_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
   bm_state->bases[1].team = RED_TEAM;
+  bm_state->bases[1].immune = true;
 
   // --- Register with EntityManager ---
   EntityFunctions base_funcs = {
@@ -188,15 +190,23 @@ void BaseManager_Destroy(BaseManagerState bm_state)
 
 void damageBase(AppState state, int baseIndex, float damageValue, bool sendToServer)
 {
-  if (state.base_manager->bases[baseIndex].current_health > 0)
+
+  BaseInstance *tempBase = &state.base_manager->bases[baseIndex];
+
+  if (tempBase->immune)
   {
-    state.base_manager->bases[baseIndex].current_health -= damageValue;
-    SDL_Log("Base %d health %d", baseIndex, state.base_manager->bases[baseIndex].current_health);
+    return;
   }
 
-  if (state.base_manager->bases[baseIndex].current_health <= 0)
+  if (tempBase->current_health > 0)
   {
-    state.base_manager->bases[baseIndex].texture = state.base_manager->destroyed_texture;
+    tempBase->current_health -= damageValue;
+    SDL_Log("Base %d health %d", baseIndex, tempBase->current_health);
+  }
+
+  if (tempBase->current_health <= 0)
+  {
+    tempBase->texture = state.base_manager->destroyed_texture;
 
     if (sendToServer)
     {

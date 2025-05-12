@@ -20,7 +20,7 @@ struct CameraState_s
  * @param camera_state The internal state of the camera module.
  * @param state The main application state.
  */
-static void Internal_CameraUpdateImplementation(CameraState camera_state, AppState *state)
+static void Internal_CameraRenderImplementation(CameraState camera_state, AppState *state)
 {
   if (!camera_state || !state || !state->player_manager || !state->map_state)
   {
@@ -51,10 +51,10 @@ static void Internal_CameraUpdateImplementation(CameraState camera_state, AppSta
  * @param manager The EntityManager instance.
  * @param state Pointer to the main AppState.
  */
-static void camera_update_callback(EntityManager manager, AppState *state)
+static void camera_render_callback(EntityManager manager, AppState *state)
 {
   (void)manager; // Manager instance is not used in this specific implementation
-  Internal_CameraUpdateImplementation(state->camera_state, state);
+  Internal_CameraRenderImplementation(state->camera_state, state);
 }
 
 /**
@@ -96,9 +96,9 @@ CameraState Camera_Init(AppState *state)
   // --- Register with EntityManager ---
   EntityFunctions camera_entity_funcs = {
       .name = "camera",
-      .update = camera_update_callback,
+      .render = camera_render_callback,
       .cleanup = camera_cleanup_callback,
-      .render = NULL,
+      .update = NULL,
       .handle_events = NULL};
 
   if (!EntityManager_Add(state->entity_manager, &camera_entity_funcs))
@@ -121,9 +121,9 @@ void Camera_Destroy(CameraState camera_state)
   }
 }
 
-void Camera_Update(CameraState camera_state, AppState *state)
+void Camera_Render(CameraState camera_state, AppState *state)
 {
-  Internal_CameraUpdateImplementation(camera_state, state);
+  Internal_CameraRenderImplementation(camera_state, state);
 }
 
 float Camera_GetX(CameraState camera_state)

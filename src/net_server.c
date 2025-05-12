@@ -349,7 +349,7 @@ static void internal_process_client_message(NetServerState ns_state, int client_
         {
             Msg_MatchResult state_data;
             memcpy(&state_data, buffer, sizeof(Msg_MatchResult));
-            state_data.message_type = MSG_TYPE_S_MATCH_RESULT; // Change type for broadcast
+            state_data.message_type = MSG_TYPE_S_GAME_RESULT; // Change type for broadcast
             NetServer_BroadcastMessage(ns_state, &state_data, sizeof(Msg_MatchResult), client_index);
         }
         else
