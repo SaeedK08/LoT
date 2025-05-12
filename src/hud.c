@@ -55,7 +55,7 @@ static void HUD_manager_render_callback(EntityManager manager, AppState *state)
     if (state->is_server && state->currentGameState == GAME_STATE_LOBBY)
     {
         SDL_Color color = (SDL_Color){255, 255, 255, 255};
-        char text[] = "Host: Focus the game window and type 'start'";
+        char text[] = "Host: Type 'start' then enter";
         SDL_Surface *textSurface = TTF_RenderText_Blended(state->HUD_manager->fontDefault, text, sizeof(text), color);
         SDL_Texture *textTexture = SDL_CreateTextureFromSurface(state->renderer, textSurface);
         SDL_FRect destinationRect = {0.0f, 0.0f, (float)textSurface->w, (float)textSurface->h};

@@ -135,7 +135,13 @@ void EntityManager_UpdateAll(EntityManager manager, AppState *state)
     {
         if (manager->entities[i].update)
         {
-            manager->entities[i].update(manager, state);
+            if (state->currentGameState == GAME_STATE_PLAYING ||
+                !strcmp(manager->entities[i].name, "HUD_manager") ||
+                !strcmp(manager->entities[i].name, "net_client") ||
+                !strcmp(manager->entities[i].name, "net_server"))
+            {
+                manager->entities[i].update(manager, state);
+            }
         }
     }
 }
@@ -151,7 +157,8 @@ void EntityManager_RenderAll(EntityManager manager, AppState *state)
     {
         if (manager->entities[i].render)
         {
-            if (state->currentGameState == GAME_STATE_PLAYING || !strcmp(manager->entities[i].name, "HUD_manager"))
+            if (state->currentGameState == GAME_STATE_PLAYING ||
+                !strcmp(manager->entities[i].name, "HUD_manager"))
             {
                 manager->entities[i].render(manager, state);
             }

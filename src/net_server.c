@@ -291,7 +291,7 @@ static void internal_process_client_message(NetServerState ns_state, int client_
                 break;
             }
             state_data.message_type = MSG_TYPE_S_MINION_STATE; // Change type for broadcast
-            NetServer_BroadcastMessage(ns_state, &state_data, sizeof(Msg_MinionStateData), client_index);
+            // NetServer_BroadcastMessage(ns_state, &state_data, sizeof(Msg_MinionStateData), client_index);
         }
         else
         {

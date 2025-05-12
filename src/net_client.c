@@ -197,17 +197,17 @@ static void internal_send_local_player_state(NetClientState nc_state, AppState *
  */
 static void internal_send_local_minion_state(NetClientState nc_state, AppState *state)
 {
-    if (!nc_state || nc_state->network_status != CLIENT_STATUS_CONNECTED || nc_state->my_client_id < 0 || !state || !state->minion_manager)
-    {
-        return;
-    }
+    // if (!nc_state || nc_state->network_status != CLIENT_STATUS_CONNECTED || nc_state->my_client_id < 0 || !state || !state->minion_manager)
+    // {
+    //     return;
+    // }
 
-    Msg_MinionStateData data;
-    if (!MinionManager_GetLocalMinionState(state->minion_manager, &data))
-    {
-        return;
-    }
-    NetClient_SendBuffer(nc_state, &data, sizeof(Msg_MinionStateData));
+    // Msg_MinionStateData data;
+    // if (!MinionManager_GetLocalMinionState(state->minion_manager, &data))
+    // {
+    //     return;
+    // }
+    // NetClient_SendBuffer(nc_state, &data, sizeof(Msg_MinionStateData));
 }
 
 /**
@@ -264,12 +264,12 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             NetClient_Destroy(nc_state);
             return;
         }
-        if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
-        {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
-            NetClient_Destroy(nc_state);
-            return;
-        }
+        // if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
+        // {
+        //     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
+        //     NetClient_Destroy(nc_state);
+        //     return;
+        // }
 
         break;
 
@@ -296,7 +296,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             memcpy(&state_data, buffer, sizeof(Msg_MinionStateData));
             if (state->minion_manager)
             {
-                MinionManager_UpdateRemoteMinion(state->minion_manager, &state_data);
+                // MinionManager_UpdateRemoteMinion(state->minion_manager, &state_data);
             }
         }
         else
@@ -508,7 +508,7 @@ static void internal_handle_server_communication(NetClientState nc_state, AppSta
     if (nc_state->my_client_id >= 0 && current_time > nc_state->last_state_send_time + STATE_UPDATE_INTERVAL_MS)
     {
         internal_send_local_player_state(nc_state, state);
-        internal_send_local_minion_state(nc_state, state);
+        // internal_send_local_minion_state(nc_state, state);
         // Check status again after send, as it might trigger disconnect
         if (nc_state->network_status == CLIENT_STATUS_CONNECTED)
         {
