@@ -264,12 +264,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             NetClient_Destroy(nc_state);
             return;
         }
-        // if (!Minion_Init(state->minion_manager, nc_state->my_client_id, state->tower_manager, state->base_manager))
-        // {
-        //     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to initialize minion for local player ID %d in Minion_Init. Error: %s", nc_state->my_client_id, SDL_GetError());
-        //     NetClient_Destroy(nc_state);
-        //     return;
-        // }
+        create_hud_instace(state, LOBBY_CLIENT_MSG, "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
 
         break;
 

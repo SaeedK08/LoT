@@ -265,9 +265,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
 
   state->currentGameState = GAME_STATE_LOBBY;
+
   if (state->is_server)
   {
+    create_hud_instace(state, LOBBY_HOST_MSG, "lobby_host_msg", true, "Host: Type 'start' then enter", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
     SDL_StartTextInput(state->window);
+  }
+  else
+  {
+    create_hud_instace(state, LOBBY_CLIENT_MSG, "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
   }
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Init] Application initialized successfully.");

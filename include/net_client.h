@@ -7,6 +7,7 @@
 #include "../include/camera.h"
 #include "../include/attack.h"
 #include "../include/entity.h"
+#include "../include/hud.h"
 
 // --- Opaque Pointer Type ---
 /**
