@@ -37,5 +37,14 @@
 #define WINDOW_W 1280
 #define WINDOW_H 720
 
+/**
+ * @brief Enum defining different font sizes.
+ */
+typedef enum FontSize
+{
+    HUD_DEFAULT_FONT = 0,
+    HUD_SMALL_FONT = 1,
+} FontSize;
+
 // --- Universal Macros ---
 #define CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))

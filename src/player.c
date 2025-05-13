@@ -284,7 +284,7 @@ static void render_single_player(PlayerManager pm, PlayerInstance *p, AppState *
     SDL_Color team_color = p->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
     create_hud_instace(state, get_hud_index_by_name(state, player_name), player_name, true, text_buffer,
-                       team_color, true, (SDL_FPoint){screen_x, screen_y - 10});
+                       team_color, true, (SDL_FPoint){screen_x, screen_y - 20}, 1);
 }
 
 // --- Static Callback Functions (for EntityManager) ---
@@ -538,7 +538,7 @@ bool PlayerManager_SetLocalPlayerID(AppState *state, uint8_t client_id)
     SDL_Log("player_name %s", player_name);
 
     create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
-                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Local player ID set to %d", client_id);
     return true;
@@ -577,7 +577,7 @@ void PlayerManager_UpdateRemotePlayer(AppState *state, const Msg_PlayerStateData
         snprintf(player_name, sizeof(player_name), "player_%d_health_value", id);
 
         create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
     }
 
     // Apply the received state directly.

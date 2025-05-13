@@ -268,14 +268,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
   if (state->is_server)
   {
-    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_msg", true, "Host: Type 'start' then enter", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
-    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_input", true, "", (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_msg", true, "Host: Type 'start' then enter", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f}, 0);
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_input", true, "", (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f}, 0);
 
     SDL_StartTextInput(state->window);
   }
   else
   {
-    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f}, 0);
   }
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Init] Application initialized successfully.");

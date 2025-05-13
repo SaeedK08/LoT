@@ -39,7 +39,7 @@ static void render_single_base(const BaseInstance *base, AppState *state)
   SDL_Color team_color = base->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
   create_hud_instace(state, get_hud_index_by_name(state, base_name), base_name, true, text_buffer,
-                     team_color, true, (SDL_FPoint){baseX, baseY - 50});
+                     team_color, true, (SDL_FPoint){baseX, baseY - 50}, 0);
 }
 
 // --- Static Callback Functions (for EntityManager) ---
@@ -154,9 +154,9 @@ BaseManagerState BaseManager_Init(AppState *state)
   for (int i = 0; i < MAX_BASES; i++)
   {
     // --- Initialize Base Instances ---
-    bm_state->bases[i]
-        .position = (SDL_FPoint){(i ? BASE_RED_POS_X : BASE_BLUE_POS_X), BUILDINGS_POS_Y};
-    bm_state->bases[i].texture = bm_state->blue_texture;
+    bm_state->bases[i];
+    bm_state->bases[i].position = (SDL_FPoint){(i ? BASE_RED_POS_X : BASE_BLUE_POS_X), BUILDINGS_POS_Y};
+    bm_state->bases[i].texture = i ? bm_state->red_texture : bm_state->blue_texture;
     bm_state->bases[i].max_health = BASE_HEALTH_MAX;
     bm_state->bases[i].current_health = BASE_HEALTH_MAX;
     bm_state->bases[i].rect = (SDL_FRect){(i ? BASE_RED_POS_X : BASE_BLUE_POS_X) - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
@@ -170,7 +170,7 @@ BaseManagerState BaseManager_Init(AppState *state)
     SDL_Color text_color = i ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
     create_hud_instace(state, get_hud_element_count(state->HUD_manager), base_name, false, "",
-                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
   }
 
   // --- Register with EntityManager ---

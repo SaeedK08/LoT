@@ -7,6 +7,7 @@
 #include "../include/net_server.h"
 
 #define HUD_DEFAULT_FONT_SIZE 28
+#define HUD_SMALL_FONT_SIZE 14
 #define HUD_MAX_ELEMENTS_AMOUNT 100
 
 // --- Opaque Pointer Type ---
@@ -36,7 +37,7 @@ HUDManager HUDManager_Init(AppState *state);
  */
 // void HUDManager_Destroy(HUDManager hm);
 
-void create_hud_instace(AppState *state, int index, char name[], bool visible, char text_buffer[], SDL_Color color, bool changeable, SDL_FPoint dest_point);
+void create_hud_instace(AppState *state, int index, char name[], bool visible, char text_buffer[], SDL_Color color, bool changeable, SDL_FPoint dest_point, FontSize fontSize);
 
 int get_hud_element_count(HUDManager hm);
 

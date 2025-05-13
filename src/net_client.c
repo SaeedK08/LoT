@@ -264,7 +264,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             NetClient_Destroy(nc_state);
             return;
         }
-        create_hud_instace(state, get_hud_index_by_name(state, "lobby_client_msg"), "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+        create_hud_instace(state, get_hud_index_by_name(state, "lobby_client_msg"), "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f}, 0);
 
         break;
 

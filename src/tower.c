@@ -39,7 +39,7 @@ static void render_single_tower(const TowerInstance *tower, AppState *state)
     SDL_Color team_color = tower->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
     create_hud_instace(state, get_hud_index_by_name(state, tower_name), tower_name, true, text_buffer,
-                       team_color, true, (SDL_FPoint){towerX, towerY - 30});
+                       team_color, true, (SDL_FPoint){towerX, towerY - 30}, 0);
 }
 
 /**
@@ -285,7 +285,7 @@ TowerManagerState TowerManager_Init(AppState *state)
         snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
 
         create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
     }
 
     for (int i = MAX_TOWERS_PER_TEAM; i < MAX_TOTAL_TOWERS; i++)
@@ -313,7 +313,7 @@ TowerManagerState TowerManager_Init(AppState *state)
         snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
 
         create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
     }
 
     tm_state->tower_count = MAX_TOTAL_TOWERS;
