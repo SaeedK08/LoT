@@ -39,6 +39,7 @@ typedef struct BaseInstance
     int current_health;   /**< Current health points. */
     int max_health;       /**< Maximum health points. */
     bool immune;
+    int index;
 } BaseInstance;
 
 /**

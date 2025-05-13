@@ -26,6 +26,11 @@ struct HUDManager_s
     TTF_Font *fontDefault;
 };
 
+int get_hud_element_count(HUDManager hm)
+{
+    return hm->elementCount;
+}
+
 int get_hud_index_by_name(AppState *state, char name[])
 {
     for (int i = 0; i < state->HUD_manager->elementCount; i++)
@@ -45,6 +50,20 @@ void create_hud_instace(AppState *state, int index, char name[], bool visible, c
     if (!hm || !state)
     {
         return;
+    }
+
+    bool existingElement = false;
+    for (int i = 0; i < HUD_MAX_ELEMENTS_AMOUNT; i++)
+    {
+        if (!strcmp(hm->elements[i].name, name))
+        {
+            existingElement = true;
+            // SDL_Log("elementCount:%d", hm->elementCount);
+        }
+    }
+    if (!existingElement)
+    {
+        hm->elementCount++;
     }
 
     HUDInstance *currentElement = &state->HUD_manager->elements[index];
@@ -89,7 +108,7 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
             {
                 strcat(command_input_buffer, event->text.text);
                 command_input_len += strlen(event->text.text);
-                create_hud_instace(state, LOBBY_HOST_INPUT, "host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
+                create_hud_instace(state, get_hud_index_by_name(state, "lobby_host_input"), "lobby_host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
             }
         }
         else if (event->type == SDL_EVENT_KEY_DOWN)
@@ -109,8 +128,8 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
                         uint8_t msg_type = MSG_TYPE_S_GAME_START;
                         NetServer_BroadcastMessage(state->net_server_state, &msg_type, sizeof(msg_type), -1);
                     }
-                    hm->elements[LOBBY_HOST_INPUT].visible = false;
-                    hm->elements[LOBBY_HOST_MSG].visible = false;
+                    hm->elements[get_hud_index_by_name(state, "lobby_host_msg")].visible = false;
+                    hm->elements[get_hud_index_by_name(state, "lobby_host_input")].visible = false;
                 }
                 else
                 {
@@ -125,7 +144,7 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
                 // Handle backspace
                 command_input_len--;
                 command_input_buffer[command_input_len] = '\0';
-                create_hud_instace(state, LOBBY_HOST_INPUT, "host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
+                create_hud_instace(state, get_hud_index_by_name(state, "lobby_host_input"), "lobby_host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
             }
         }
     }

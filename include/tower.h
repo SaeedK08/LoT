@@ -7,6 +7,7 @@
 #include "../include/attack.h"
 #include "../include/entity.h"
 #include "../include/base.h"
+#include "../include/hud.h"
 
 // --- Constants ---
 #define MAX_TOWERS_PER_TEAM 2
@@ -46,6 +47,7 @@ typedef struct TowerInstance
     bool is_active;              /**< Flag indicating if the tower is currently functional. */
     bool teamFirstTower;
     bool immune;
+    int index;
 } TowerInstance;
 
 /**

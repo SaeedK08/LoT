@@ -74,6 +74,7 @@ typedef struct PlayerInstance
     SDL_Texture *texture;
     int current_health; /**< Current health points. */
     int max_health;     /**< Maximum health points. */
+    int index;
 } PlayerInstance;
 
 /**
@@ -115,7 +116,7 @@ void PlayerManager_Destroy(PlayerManager pm);
  * @param client_id The client ID assigned by the server.
  * @return True on success, false if the ID is invalid or already set.
  */
-bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id);
+bool PlayerManager_SetLocalPlayerID(AppState *state, uint8_t client_id);
 
 /**
  * @brief Updates the state of a remote player based on received network data.
@@ -123,7 +124,7 @@ bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id);
  * @param pm The PlayerManager instance.
  * @param data Pointer to the received Msg_PlayerStateData.
  */
-void PlayerManager_UpdateRemotePlayer(PlayerManager pm, const Msg_PlayerStateData *data);
+void PlayerManager_UpdateRemotePlayer(AppState *state, const Msg_PlayerStateData *data);
 
 /**
  * @brief Marks a remote player as inactive.

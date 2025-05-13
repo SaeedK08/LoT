@@ -274,6 +274,17 @@ static void render_single_player(PlayerManager pm, PlayerInstance *p, AppState *
                              0.0,                // No rotation needed for player sprite
                              NULL,               // Render around center
                              p->flip_mode);      // Horizontal flip state
+
+    char text_buffer[16];
+    snprintf(text_buffer, sizeof(text_buffer), "%d/%d", p->current_health, PLAYER_HEALTH_MAX);
+
+    char player_name[32];
+    snprintf(player_name, sizeof(player_name), "player_%d_health_value", p->index);
+
+    SDL_Color team_color = p->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
+
+    create_hud_instace(state, get_hud_index_by_name(state, player_name), player_name, true, text_buffer,
+                       team_color, true, (SDL_FPoint){screen_x, screen_y - 10});
 }
 
 // --- Static Callback Functions (for EntityManager) ---
@@ -475,8 +486,10 @@ void PlayerManager_Destroy(PlayerManager pm)
     }
 }
 
-bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
+bool PlayerManager_SetLocalPlayerID(AppState *state, uint8_t client_id)
 {
+    PlayerManager pm = state ? state->player_manager : NULL;
+
     if (!pm || client_id >= MAX_CLIENTS)
     {
         SDL_SetError("Invalid PlayerManager or client ID (%u)", (unsigned int)client_id);
@@ -503,6 +516,7 @@ bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
     current_player->texture = pm->player_texture;
     current_player->max_health = PLAYER_HEALTH_MAX;
     current_player->current_health = PLAYER_HEALTH_MAX;
+    current_player->index = client_id;
 
     // Initial spawn position.
     current_player->position = (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
@@ -518,12 +532,22 @@ bool PlayerManager_SetLocalPlayerID(PlayerManager pm, uint8_t client_id)
         PLAYER_WIDTH,
         PLAYER_HEIGHT};
 
+    char player_name[32];
+    snprintf(player_name, sizeof(player_name), "player_%d_health_value", client_id);
+
+    SDL_Log("player_name %s", player_name);
+
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
+                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Local player ID set to %d", client_id);
     return true;
 }
 
-void PlayerManager_UpdateRemotePlayer(PlayerManager pm, const Msg_PlayerStateData *data)
+void PlayerManager_UpdateRemotePlayer(AppState *state, const Msg_PlayerStateData *data)
 {
+    PlayerManager pm = state ? state->player_manager : NULL;
+
     if (!pm || !data || data->client_id >= MAX_CLIENTS)
         return;
 
@@ -542,11 +566,18 @@ void PlayerManager_UpdateRemotePlayer(PlayerManager pm, const Msg_PlayerStateDat
         pm->players[id].team = data->team;
         pm->players[id].texture = pm->blue_texture;
         pm->players[id].current_health = data->current_health;
+        pm->players[id].index = id;
 
         if (pm->players[id].team)
         {
             pm->players[id].texture = pm->red_texture;
         }
+
+        char player_name[32];
+        snprintf(player_name, sizeof(player_name), "player_%d_health_value", id);
+
+        create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
     }
 
     // Apply the received state directly.
@@ -631,11 +662,13 @@ bool PlayerManager_GetLocalPlayerState(PlayerManager pm, Msg_PlayerStateData *ou
 
 void damagePlayer(AppState state, int playerIndex, float damageValue, bool sendToServer)
 {
-    if (state.player_manager->players[playerIndex].current_health > 0)
+    PlayerInstance *p = &state.player_manager->players[playerIndex];
+
+    if (p->current_health > 0)
     {
-        state.player_manager->players[playerIndex].current_health -= damageValue;
-        state.player_manager->players[playerIndex].playHurtAnim = true;
-        SDL_Log("Player %d health %d", playerIndex, state.player_manager->players[playerIndex].current_health);
+        p->current_health -= damageValue;
+        p->playHurtAnim = true;
+        SDL_Log("Player %d health %d", playerIndex, p->current_health);
     }
 
     if (sendToServer)
@@ -643,11 +676,11 @@ void damagePlayer(AppState state, int playerIndex, float damageValue, bool sendT
         NetClient_SendDamagePlayerRequest(state.net_client_state, playerIndex, damageValue);
     }
 
-    if (state.player_manager->players[playerIndex].current_health <= 0 && !state.player_manager->players[playerIndex].dead)
+    if (p->current_health <= 0 && !p->dead)
     {
-        state.player_manager->players[playerIndex].dead = true;
-        state.player_manager->players[playerIndex].playDeathAnim = true;
-        state.player_manager->players[playerIndex].deathTime = SDL_GetTicks();
+        p->dead = true;
+        p->playDeathAnim = true;
+        p->deathTime = SDL_GetTicks();
         SDL_Log("Player %d Destroyed", playerIndex);
     }
 }

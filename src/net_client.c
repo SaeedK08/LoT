@@ -258,13 +258,13 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             NetClient_Destroy(nc_state);
             return;
         }
-        if (!PlayerManager_SetLocalPlayerID(state->player_manager, nc_state->my_client_id))
+        if (!PlayerManager_SetLocalPlayerID(state, nc_state->my_client_id))
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] Failed to set local player ID %d in PlayerManager. Error: %s", nc_state->my_client_id, SDL_GetError());
             NetClient_Destroy(nc_state);
             return;
         }
-        create_hud_instace(state, LOBBY_CLIENT_MSG, "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+        create_hud_instace(state, get_hud_index_by_name(state, "lobby_client_msg"), "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
 
         break;
 
@@ -275,7 +275,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             memcpy(&state_data, buffer, sizeof(Msg_PlayerStateData));
             if (state->player_manager)
             {
-                PlayerManager_UpdateRemotePlayer(state->player_manager, &state_data);
+                PlayerManager_UpdateRemotePlayer(state, &state_data);
             }
         }
         else

@@ -6,16 +6,6 @@
 #include "../include/common.h"
 #include "../include/net_server.h"
 
-/**
- * @brief Enum defining different attack types.
- */
-typedef enum HUDElement
-{
-    LOBBY_HOST_MSG = 0,
-    LOBBY_CLIENT_MSG = 1,
-    LOBBY_HOST_INPUT = 2,
-} HUDElement;
-
 #define HUD_DEFAULT_FONT_SIZE 28
 #define HUD_MAX_ELEMENTS_AMOUNT 100
 
@@ -47,3 +37,7 @@ HUDManager HUDManager_Init(AppState *state);
 // void HUDManager_Destroy(HUDManager hm);
 
 void create_hud_instace(AppState *state, int index, char name[], bool visible, char text_buffer[], SDL_Color color, bool changeable, SDL_FPoint dest_point);
+
+int get_hud_element_count(HUDManager hm);
+
+int get_hud_index_by_name(AppState *state, char name[]);

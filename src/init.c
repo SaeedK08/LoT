@@ -135,7 +135,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
 
   // --- Window Creation ---
-  state->window = SDL_CreateWindow("League of Tigers", 1280, 720, SDL_WINDOW_RESIZABLE);
+  state->window = SDL_CreateWindow("League of Tigers", WINDOW_W, WINDOW_H, SDL_WINDOW_RESIZABLE);
   if (!state->window)
   {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Init] SDL_CreateWindow failed: %s", SDL_GetError());
@@ -208,6 +208,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
+  state->HUD_manager = HUDManager_Init(state);
+  if (!state->HUD_manager)
+  {
+    cleanup_on_failure(state, "HUDManager_Init");
+    *appstate = NULL;
+    return SDL_APP_FAILURE;
+  }
+
   state->base_manager = BaseManager_Init(state);
   if (!state->base_manager)
   {
@@ -256,24 +264,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_FAILURE;
   }
 
-  state->HUD_manager = HUDManager_Init(state);
-  if (!state->HUD_manager)
-  {
-    cleanup_on_failure(state, "HUDManager_Init");
-    *appstate = NULL;
-    return SDL_APP_FAILURE;
-  }
-
   state->currentGameState = GAME_STATE_LOBBY;
 
   if (state->is_server)
   {
-    create_hud_instace(state, LOBBY_HOST_MSG, "lobby_host_msg", true, "Host: Type 'start' then enter", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_msg", true, "Host: Type 'start' then enter", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_host_input", true, "", (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f});
+
     SDL_StartTextInput(state->window);
   }
   else
   {
-    create_hud_instace(state, LOBBY_CLIENT_MSG, "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f});
   }
 
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Init] Application initialized successfully.");

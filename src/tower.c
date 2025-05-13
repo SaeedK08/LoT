@@ -18,14 +18,28 @@ static void render_single_tower(const TowerInstance *tower, AppState *state)
     float cam_x = Camera_GetX(camera);
     float cam_y = Camera_GetY(camera);
 
+    float towerX = tower->position.x - cam_x - TOWER_RENDER_WIDTH / 2.0f;
+    float towerY = tower->position.y - cam_y - TOWER_RENDER_HEIGHT / 2.0f;
+
     // Calculate screen position, rendering upwards from the defined position point.
     SDL_FRect dst_rect = {
-        .x = tower->position.x - cam_x - TOWER_RENDER_WIDTH / 2.0f,
-        .y = tower->position.y - cam_y - TOWER_RENDER_HEIGHT / 2.0f,
+        .x = towerX,
+        .y = towerY,
         .w = TOWER_RENDER_WIDTH,
         .h = TOWER_RENDER_HEIGHT};
 
     SDL_RenderTexture(state->renderer, tower->texture, NULL, &dst_rect);
+
+    char text_buffer[16];
+    snprintf(text_buffer, sizeof(text_buffer), "%.0f/%d", tower->current_health, TOWER_HEALTH_MAX);
+
+    char tower_name[32];
+    snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", tower->index);
+
+    SDL_Color team_color = tower->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
+
+    create_hud_instace(state, get_hud_index_by_name(state, tower_name), tower_name, true, text_buffer,
+                       team_color, true, (SDL_FPoint){towerX, towerY - 30});
 }
 
 /**
@@ -258,6 +272,7 @@ TowerManagerState TowerManager_Init(AppState *state)
             .team = RED_TEAM,
             .teamFirstTower = (i == 1) ? true : false,
             .immune = (i == 0) ? true : false,
+            .index = i,
         };
 
         tm_state->towers[i].rect = (SDL_FRect){
@@ -265,6 +280,12 @@ TowerManagerState TowerManager_Init(AppState *state)
             BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
             TOWER_RENDER_WIDTH,
             TOWER_RENDER_HEIGHT};
+
+        char tower_name[32];
+        snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
+
+        create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
     }
 
     for (int i = MAX_TOWERS_PER_TEAM; i < MAX_TOTAL_TOWERS; i++)
@@ -279,6 +300,7 @@ TowerManagerState TowerManager_Init(AppState *state)
             .team = BLUE_TEAM,
             .teamFirstTower = (i == 3) ? true : false,
             .immune = (i == 2) ? true : false,
+            .index = i,
         };
 
         tm_state->towers[i].rect = (SDL_FRect){
@@ -286,6 +308,12 @@ TowerManagerState TowerManager_Init(AppState *state)
             BUILDINGS_POS_Y - TOWER_RENDER_HEIGHT / 2.0f,
             TOWER_RENDER_WIDTH,
             TOWER_RENDER_HEIGHT};
+
+        char tower_name[32];
+        snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
+
+        create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
+                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
     }
 
     tm_state->tower_count = MAX_TOTAL_TOWERS;

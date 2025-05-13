@@ -2,7 +2,7 @@
 
 // --- Static Helper Functions ---
 
-/**
+/*
  * @brief Renders a single base instance.
  * @param base Pointer to the BaseInstance to render.
  * @param state Pointer to the main AppState.
@@ -18,14 +18,28 @@ static void render_single_base(const BaseInstance *base, AppState *state)
   float cam_x = Camera_GetX(camera);
   float cam_y = Camera_GetY(camera);
 
+  float baseX = base->position.x - cam_x - BASE_RENDER_WIDTH / 2.0f;
+  float baseY = base->position.y - cam_y - BASE_RENDER_HEIGHT / 2.0f;
+
   // Calculate screen position (rendering from top-left based on center position)
   SDL_FRect dst_rect = {
-      .x = base->position.x - cam_x - BASE_RENDER_WIDTH / 2.0f,
-      .y = base->position.y - cam_y - BASE_RENDER_HEIGHT / 2.0f,
+      .x = baseX,
+      .y = baseY,
       .w = BASE_RENDER_WIDTH,
       .h = BASE_RENDER_HEIGHT};
 
   SDL_RenderTexture(state->renderer, base->texture, NULL, &dst_rect);
+
+  char text_buffer[16];
+  snprintf(text_buffer, sizeof(text_buffer), "%d/%d", base->current_health, BASE_HEALTH_MAX);
+
+  char base_name[32];
+  snprintf(base_name, sizeof(base_name), "base_%d_health_value", base->index);
+
+  SDL_Color team_color = base->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
+
+  create_hud_instace(state, get_hud_index_by_name(state, base_name), base_name, true, text_buffer,
+                     team_color, true, (SDL_FPoint){baseX, baseY - 50});
 }
 
 // --- Static Callback Functions (for EntityManager) ---
@@ -137,23 +151,27 @@ BaseManagerState BaseManager_Init(AppState *state)
   }
   SDL_SetTextureScaleMode(bm_state->destroyed_texture, SDL_SCALEMODE_NEAREST);
 
-  // --- Initialize Base Instances ---
-  bm_state->bases[0]
-      .position = (SDL_FPoint){BASE_BLUE_POS_X, BUILDINGS_POS_Y};
-  bm_state->bases[0].texture = bm_state->blue_texture;
-  bm_state->bases[0].max_health = BASE_HEALTH_MAX;
-  bm_state->bases[0].current_health = BASE_HEALTH_MAX;
-  bm_state->bases[0].rect = (SDL_FRect){BASE_BLUE_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
-  bm_state->bases[0].team = BLUE_TEAM;
-  bm_state->bases[0].immune = true;
+  for (int i = 0; i < MAX_BASES; i++)
+  {
+    // --- Initialize Base Instances ---
+    bm_state->bases[i]
+        .position = (SDL_FPoint){(i ? BASE_RED_POS_X : BASE_BLUE_POS_X), BUILDINGS_POS_Y};
+    bm_state->bases[i].texture = bm_state->blue_texture;
+    bm_state->bases[i].max_health = BASE_HEALTH_MAX;
+    bm_state->bases[i].current_health = BASE_HEALTH_MAX;
+    bm_state->bases[i].rect = (SDL_FRect){(i ? BASE_RED_POS_X : BASE_BLUE_POS_X) - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
+    bm_state->bases[i].team = i;
+    bm_state->bases[i].immune = true;
+    bm_state->bases[i].index = i;
 
-  bm_state->bases[1].position = (SDL_FPoint){BASE_RED_POS_X, BUILDINGS_POS_Y};
-  bm_state->bases[1].texture = bm_state->red_texture;
-  bm_state->bases[1].max_health = BASE_HEALTH_MAX;
-  bm_state->bases[1].current_health = BASE_HEALTH_MAX;
-  bm_state->bases[1].rect = (SDL_FRect){BASE_RED_POS_X - BASE_RENDER_WIDTH / 2.0f, BUILDINGS_POS_Y - BASE_RENDER_HEIGHT / 2.0f, BASE_RENDER_WIDTH, BASE_RENDER_HEIGHT};
-  bm_state->bases[1].team = RED_TEAM;
-  bm_state->bases[1].immune = true;
+    char base_name[32];
+    snprintf(base_name, sizeof(base_name), "base_%d_health_value", i);
+
+    SDL_Color text_color = i ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
+
+    create_hud_instace(state, get_hud_element_count(state->HUD_manager), base_name, false, "",
+                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f});
+  }
 
   // --- Register with EntityManager ---
   EntityFunctions base_funcs = {

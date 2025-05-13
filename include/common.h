@@ -34,5 +34,8 @@
 
 #define BUILDINGS_POS_Y 850.0f // All buildings have the same Y position
 
+#define WINDOW_W 1280
+#define WINDOW_H 720
+
 // --- Universal Macros ---
 #define CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
