@@ -48,7 +48,7 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
         move_y = (move_y / len) * MINION_SPEED * state->delta_time;
     }
     // Create Rect of Minion
-    SDL_FRect minion_rect = {
+    SDL_FRect minionRect = {
         m->position.x + move_x - MINION_WIDTH / 2.0f,
         m->position.y + move_y - MINION_HEIGHT / 2.0f,
         MINION_WIDTH,
@@ -58,16 +58,16 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
     for (int i = 0; i < MAX_TOTAL_TOWERS; i++)
     {
         TowerInstance temp_tower = state->tower_manager->towers[i];
-        if (SDL_HasRectIntersectionFloat(&minion_rect, &temp_tower.rect))
+        if (SDL_HasRectIntersectionFloat(&minionRect, &temp_tower.rect))
         {
             if (temp_tower.team != m->team)
             {
                 if (temp_tower.current_health > 0)
                 {
                     m->is_attacking = true;
-                    if ((SDL_GetTicks() - m->attack_cooldown_timer) > MINON_ATTACK_COOLDOWN)
+                    if ((SDL_GetTicks() - m->attack_cooldown_timer) > MINION_ATTACK_COOLDOWN)
                     {
-                        damageTower(*state, i, MINON_DAMAGE_VALUE, true, 0);
+                        damageTower(*state, i, MINION_DAMAGE_VALUE, true, 0);
                         m->attack_cooldown_timer = SDL_GetTicks();
                     }
                 }
@@ -77,6 +77,42 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
                 }
             }
             collision = true;
+        }
+    }
+    
+    // Check for collision with the enemy's base 
+    if (m->team)
+    {
+        BaseInstance tempBase = state->base_manager->bases[0];
+        if (SDL_HasRectIntersectionFloat(&minionRect, &tempBase.rect))
+        {
+            m->is_attacking = true; 
+            collision = true;
+            if (tempBase.current_health > 0)
+            {
+                if (SDL_GetTicks() - m->attack_cooldown_timer > MINION_ATTACK_COOLDOWN)
+                {
+                    damageBase(*state, 0, MINION_DAMAGE_VALUE, true);
+                    m->attack_cooldown_timer = SDL_GetTicks();
+                }
+            }
+        }
+    }
+    if(!m->team)
+    {
+        BaseInstance tempBase = state->base_manager->bases[1];
+        if (SDL_HasRectIntersectionFloat(&minionRect, &tempBase.rect))
+        {
+            m->is_attacking = true;
+            collision = true;
+            if (tempBase.current_health > 0)
+            {
+                if (SDL_GetTicks() - m->attack_cooldown_timer > MINION_ATTACK_COOLDOWN)
+                {
+                    damageBase(*state, 1, MINION_DAMAGE_VALUE, true);
+                    m->attack_cooldown_timer = SDL_GetTicks();
+                }
+            }
         }
     }
 
