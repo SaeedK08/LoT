@@ -299,6 +299,27 @@ static void internal_process_client_message(NetServerState ns_state, int client_
         }
         break;
 
+    case MSG_TYPE_C_DAMAGE_MINION:
+        if (client_info->status != CLIENT_STATE_WELCOMED)
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Server] Received C_DAMAGE_MINION from client ID %u not in WELCOMED state (%d). Ignoring.", (unsigned int)sender_id, client_info->status);
+            break;
+        }
+        if (bytesReceived >= (int)sizeof(Msg_DamageMinion))
+        {
+            Msg_DamageMinion state_data;
+            memcpy(&state_data, buffer, sizeof(Msg_DamageMinion));
+
+            state_data.message_type = MSG_TYPE_S_DAMAGE_MINION;     // Change type for broadcast
+            NetServer_BroadcastMessage(ns_state, &state_data, sizeof(Msg_DamageMinion), client_index);
+        }
+        else 
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Server] Rcvd incomplete C_DAMAGE_MINION msg from client %u (%d bytes, needed %lu)", (unsigned int)sender_id, bytesReceived, (unsigned long)sizeof(Msg_DamageMinion));
+        }
+        break;
+
+
     case MSG_TYPE_C_DAMAGE_TOWER:
         if (client_info->status != CLIENT_STATE_WELCOMED)
         {

@@ -365,6 +365,22 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         }
         break;
 
+    case MSG_TYPE_S_DAMAGE_MINION: 
+        if (bytesReceived >= (int)sizeof(Msg_DamageMinion))
+        {
+            Msg_DamageMinion state_data;
+            memcpy(&state_data, buffer, sizeof(Msg_DamageMinion));
+            if (state->minion_manager)
+            {
+                damageMinion(*state, state_data.minionIndex, 0, false, state_data.current_health);
+            }
+        }
+        else 
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_DAMAGE_MINION msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_DamageMinion));
+        }
+        break;
+
     case MSG_TYPE_S_DAMAGE_TOWER:
         if (bytesReceived >= (int)sizeof(Msg_DamageTower))
         {
@@ -675,6 +691,20 @@ bool NetClient_SendDamagePlayerRequest(NetClientState nc_state, int playerIndex,
 
     return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_DamagePlayer));
 }
+
+bool NetClient_SendDamageMinionRequest(NetClientState nc_state, int minionIndex, float sentCurrentHealth)
+{
+    if (!NetClient_IsConnected(nc_state))
+    {
+        return false;
+    }
+    Msg_DamageMinion msg;
+    msg.message_type = MSG_TYPE_C_DAMAGE_MINION;
+    msg.minionIndex = minionIndex;
+    msg.current_health = sentCurrentHealth;
+    return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_DamageMinion));
+}
+
 
 bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue, float current_health)
 {

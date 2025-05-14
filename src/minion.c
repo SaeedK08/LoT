@@ -1,31 +1,5 @@
 #include "../include/minion.h"
 
-struct MinionData
-{
-    bool team;
-    SDL_FPoint position;      /**< Current world position (center). */
-    SDL_FRect sprite_portion; /**< The source rect defining the current animation frame. */
-    SDL_FlipMode flip_mode;   /**< Rendering flip state (horizontal). */
-    bool active;              /**< Whether this minion slot is currently in use. */
-    bool is_attacking;
-    SDL_Texture *texture;
-    int current_health; /**< Current health points. */
-    float anim_timer;
-    int current_frame;
-    float attack_cooldown_timer;
-};
-
-struct MinionManager_s
-{
-    MinionData minions[MINION_MAX_AMOUNT];
-    SDL_Texture *red_texture;
-    SDL_Texture *blue_texture;
-    Uint64 minionWaveTimer;
-    Uint64 recentMinionTimer;
-    int activeMinionAmount;
-    int currentMinionWaveAmount;
-    bool spawnNextMinion;
-};
 
 static void minion_manager_cleanup_callback(EntityManager manager, AppState *state)
 {
@@ -189,7 +163,7 @@ static void minion_manager_update_callback(EntityManager manager, AppState *stat
     if (!mm || !state)
         return;
 
-    if ((SDL_GetTicks() - mm->minionWaveTimer) > 10000)
+    if ((SDL_GetTicks() - mm->minionWaveTimer) > 10000 && mm->activeMinionAmount < MINION_MAX_AMOUNT - 1)
     {
         if ((SDL_GetTicks() - mm->recentMinionTimer) > 500)
         {
@@ -249,6 +223,29 @@ static void minion_manager_render_callback(EntityManager manager, AppState *stat
         {
             render_single_minion(&mm->minions[i], state);
         }
+    }
+}
+
+void damageMinion(AppState state, int minionIndex, float damageValue, bool sendToServer, float sentCurrentHealth)
+{
+    MinionData *m = &state.minion_manager->minions[minionIndex];
+
+    if(!sendToServer)
+    {
+        m->current_health = sentCurrentHealth;
+    }
+    
+    if(m->current_health > 0 && sendToServer)
+    {
+        m->current_health -= damageValue;
+        sentCurrentHealth = m->current_health;
+        NetClient_SendDamageMinionRequest(state.net_client_state, minionIndex, sentCurrentHealth);
+    }
+
+    if(m->current_health <= 0)
+    {
+        if (!sendToServer) SDL_Log("[client] destryed minion\n");
+        m->active = false;
     }
 }
 

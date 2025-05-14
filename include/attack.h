@@ -10,6 +10,7 @@
 #include "../include/entity.h"
 #include "../include/net_server.h"
 #include "../include/player.h"
+#include "../include/minion.h"
 #include "../include/map.h"
 #include "../include/camera.h"
 #include "../include/base.h"

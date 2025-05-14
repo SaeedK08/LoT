@@ -59,6 +59,8 @@ bool NetClient_IsConnected(NetClientState nc_state);
  */
 bool NetClient_SendSpawnAttackRequest(NetClientState nc_state, AttackType type, float target_world_x, float target_world_y, bool team);
 
+bool NetClient_SendDamageMinionRequest(NetClientState nc_state, int minionIndex, float sentCurrentHealth);
+
 bool NetClient_SendDamagePlayerRequest(NetClientState nc_state, int playerIndex, float damageValue);
 /**
  * @brief Sends a request to the server to damage a tower.

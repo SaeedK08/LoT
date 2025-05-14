@@ -363,20 +363,16 @@ void damageTower(AppState state, int towerIndex, float damageValue, bool sendToS
     if (!sendToServer)
     {
         tempTower->current_health = current_health;
-        // SDL_Log("Received tower index %d from server | current health after taking damange %f\n", towerIndex, tempTower->current_health);
     }
     if (sendToServer && tempTower->current_health > 0)
     {
         tempTower->current_health -= damageValue;
         current_health = tempTower->current_health;
-        SDL_Log("Tower %d health %f", towerIndex, tempTower->current_health);
         NetClient_SendDamageTowerRequest(state.net_client_state, towerIndex, damageValue, current_health);
     }
 
     if (tempTower->current_health <= 0)
     {
-        if (!sendToServer)
-            SDL_Log("\n\n[client] Received Destroyed Tower.\n\n");
         tempTower->texture = state.tower_manager->destroyed_texture;
         SDL_Log("Tower %d Destroyed", towerIndex);
 

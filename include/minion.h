@@ -17,7 +17,6 @@
 
 #define MINION_SPEED 150.0f
 #define MINON_DAMAGE_VALUE 1.0f
-// #define TARGETS 3
 
 #define MINION_SPRITE_FRAME_WIDTH 107.0f
 #define MINION_SPRITE_FRAME_HEIGHT 110.0f
@@ -29,5 +28,33 @@
 typedef struct MinionData MinionData;
 typedef struct MinionManager_s *MinionManager;
 
+struct MinionData
+{
+    bool team;
+    SDL_FPoint position;      /**< Current world position (center). */
+    SDL_FRect sprite_portion; /**< The source rect defining the current animation frame. */
+    SDL_FlipMode flip_mode;   /**< Rendering flip state (horizontal). */
+    bool active;              /**< Whether this minion slot is currently in use. */
+    bool is_attacking;
+    SDL_Texture *texture;
+    int current_health; /**< Current health points. */
+    float anim_timer;
+    int current_frame;
+    float attack_cooldown_timer;
+};
+
+struct MinionManager_s
+{
+    MinionData minions[MINION_MAX_AMOUNT];
+    SDL_Texture *red_texture;
+    SDL_Texture *blue_texture;
+    Uint64 minionWaveTimer;
+    Uint64 recentMinionTimer;
+    int activeMinionAmount;
+    int currentMinionWaveAmount;
+    bool spawnNextMinion;
+};
+
 MinionManager MinionManager_Init(AppState *state);
 void MinionManager_Destroy(MinionManager mm);
+void damageMinion(AppState state, int minionIndex, float damageValue, bool senToServer, float sentCurrentHealth);
