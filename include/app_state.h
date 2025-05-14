@@ -37,7 +37,8 @@ typedef struct AppState
 {
     SDL_Window *window;
     SDL_Renderer *renderer;
-
+    SDL_Cursor *cursor;
+    SDL_Surface *cursor_surface;
     // --- Timing ---
     Uint64 last_tick;
     Uint64 current_tick;

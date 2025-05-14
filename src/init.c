@@ -278,6 +278,21 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     create_hud_instace(state, get_hud_element_count(state->HUD_manager), "lobby_client_msg", true, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f}, 0);
   }
 
+  state->cursor_surface = IMG_Load("./resources/cursor_scaled.png");
+  if (!state->cursor_surface)
+  {
+    SDL_Log("Error: Failed to load a surface for cursor: %s\n" ,SDL_GetError());
+    SDL_DestroySurface(state->cursor_surface);
+  }
+  state->cursor = SDL_CreateColorCursor(state->cursor_surface, 0, 0);
+  if (!state->cursor)
+  {
+    SDL_Log("Error: Failed to create a cursor: %s\n" ,SDL_GetError());
+    SDL_DestroyCursor(state->cursor);
+  }
+  SDL_SetCursor(state->cursor);
+
+
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Init] Application initialized successfully.");
   return SDL_APP_CONTINUE;
 }

@@ -44,6 +44,16 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     state->window = NULL;
   }
 
+  if (state->cursor)
+  {
+    SDL_DestroyCursor(state->cursor);
+  }
+
+  if (state->cursor_surface)
+  {
+    SDL_DestroySurface(state->cursor_surface);
+  }
+
   // --- Quit SDL Subsystems ---
   SDLNet_Quit();
   SDL_QuitSubSystem(SDL_INIT_VIDEO);

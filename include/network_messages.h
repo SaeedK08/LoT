@@ -21,8 +21,7 @@ typedef enum MessageType
     MSG_TYPE_C_DAMAGE_PLAYER = 4, /**< Client requests to damage a player. */
     MSG_TYPE_C_DAMAGE_TOWER = 5,  /**< Client requests to damage a tower. */
     MSG_TYPE_C_DAMAGE_BASE = 6,   /**< Client requests to damage a base. */
-    MSG_TYPE_C_MINION_STATE = 7,  /**< Client sends minon state update. */
-    MSG_TYPE_C_DAMAGE_MINION = 8,  /**< Client sends a request to damage a minion. */
+    MSG_TYPE_C_DAMAGE_MINION = 7,  /**< Client sends a request to damage a minion. */
 
 
     MSG_TYPE_C_MATCH_RESULT = 89, /**< Client sends the match result. */
@@ -34,8 +33,7 @@ typedef enum MessageType
     MSG_TYPE_S_DAMAGE_PLAYER = 104, /**< Server confirms/broadcasts damage to a player. */
     MSG_TYPE_S_DAMAGE_TOWER = 105,  /**< Server confirms/broadcasts damage to a tower. */
     MSG_TYPE_S_DAMAGE_BASE = 106,   /**< Server confirms/broadcasts damage to a basea. */
-    MSG_TYPE_S_MINION_STATE = 107,  /**< Serever confirms/broadcast minon's state. */
-    MSG_TYPE_S_DAMAGE_MINION = 108,  /**< Serever confirms/broadcast damage to minion. */
+    MSG_TYPE_S_DAMAGE_MINION = 107,  /**< Serever confirms/broadcast damage to minion. */
     
 
     MSG_TYPE_S_GAME_START = 188,

@@ -284,22 +284,6 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         }
         break;
 
-    case MSG_TYPE_S_MINION_STATE:
-        if (bytesReceived >= (int)sizeof(Msg_MinionStateData))
-        {
-            Msg_MinionStateData state_data;
-            memcpy(&state_data, buffer, sizeof(Msg_MinionStateData));
-            if (state->minion_manager)
-            {
-                // MinionManager_UpdateRemoteMinion(state->minion_manager, &state_data);
-            }
-        }
-        else
-        {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_MINION_STATE msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_MinionStateData));
-        }
-        break;
-
     case MSG_TYPE_S_PLAYER_DISCONNECT:
         if (bytesReceived >= (int)sizeof(Msg_PlayerDisconnectData))
         {
