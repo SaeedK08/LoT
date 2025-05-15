@@ -59,3 +59,4 @@ struct MinionManager_s
 MinionManager MinionManager_Init(AppState *state);
 void MinionManager_Destroy(MinionManager mm);
 void damageMinion(AppState state, int minionIndex, float damageValue, bool senToServer, float sentCurrentHealth);
+bool MinionManager_GetMinionPosition(MinionManager mm, int minionIndex, SDL_FPoint *out_pos);

@@ -351,3 +351,15 @@ void MinionManager_Destroy(MinionManager mm)
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "MinonManager state container destroyed.");
     }
 }
+
+bool MinionManager_GetMinionPosition(MinionManager mm, int minionIndex, SDL_FPoint *out_pos)
+{
+    MinionData minion = mm->minions[minionIndex];
+    if (!minion.active)
+    {
+        return false;           // No minion was found in the given index
+    }
+
+    *out_pos = minion.position;
+    return true;
+}

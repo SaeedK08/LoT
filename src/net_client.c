@@ -190,25 +190,6 @@ static void internal_send_local_player_state(NetClientState nc_state, AppState *
     NetClient_SendBuffer(nc_state, &data, sizeof(Msg_PlayerStateData));
 }
 
-/**
- *  @brief Sends the local minion's current state to the server.
- *  @param nc_state The NetClientState instance.
- *  @param state The main AppState instance.
- */
-static void internal_send_local_minion_state(NetClientState nc_state, AppState *state)
-{
-    // if (!nc_state || nc_state->network_status != CLIENT_STATUS_CONNECTED || nc_state->my_client_id < 0 || !state || !state->minion_manager)
-    // {
-    //     return;
-    // }
-
-    // Msg_MinionStateData data;
-    // if (!MinionManager_GetLocalMinionState(state->minion_manager, &data))
-    // {
-    //     return;
-    // }
-    // NetClient_SendBuffer(nc_state, &data, sizeof(Msg_MinionStateData));
-}
 
 /**
  * @brief Processes a single message received from the server based on its type.

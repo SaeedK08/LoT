@@ -73,6 +73,7 @@ static void update_single_tower(TowerInstance *tower, AppState *state, int tower
 
         PlayerManager pm = state->player_manager;
         AttackManager am = state->attack_manager;
+        MinionManager mm = state->minion_manager;
         SDL_FPoint target_pos = {0.0f, 0.0f};
         bool target_found = false;
         float min_dist_sq = TOWER_ATTACK_RANGE * TOWER_ATTACK_RANGE;
@@ -92,6 +93,26 @@ static void update_single_tower(TowerInstance *tower, AppState *state, int tower
                     {
                         min_dist_sq = dist_sq;
                         target_pos = player_pos;
+                        target_found = true;
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < MINION_MAX_AMOUNT; i++)
+        {
+            SDL_FPoint minion_pos;
+            if (tower->team != mm->minions[i].team)
+            {
+                if (MinionManager_GetMinionPosition(mm, i, &minion_pos))
+                {
+                    float dx = minion_pos.x - tower->position.x;
+                    float dy = minion_pos.y  - tower->position.y;
+                    float dest_sq = dx * dx + dy * dy;
+                    if (dest_sq <= min_dist_sq)
+                    {
+                        min_dist_sq = dest_sq;
+                        target_pos = minion_pos;
                         target_found = true;
                     }
                 }

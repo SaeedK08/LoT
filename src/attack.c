@@ -175,7 +175,6 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
 
                     for (int i = 0; i < MINION_MAX_AMOUNT; i++)
                     {
-
                         MinionData minion = state->minion_manager->minions[i];
                         SDL_FRect minionRect = {minion.position.x, minion.position.y, MINION_WIDTH, MINION_HEIGHT};
                         SDL_FRect attackRect = {attack->position.x, attack->position.y, attack->render_width, attack->render_height};
@@ -186,7 +185,6 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         {
                             if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
                             {
-                                SDL_Log("Attack Hit Minion [%d]\n" ,i);
                                 SDL_Delay(10);
                                 damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
                             }
@@ -227,6 +225,23 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         }
                     }
                 }
+                for (int i = 0; i < MINION_MAX_AMOUNT; i++)
+                    {
+                        MinionData minion = state->minion_manager->minions[i];
+                        SDL_FRect minionRect = {minion.position.x, minion.position.y, MINION_WIDTH, MINION_HEIGHT};
+                        SDL_FRect attackRect = {attack->position.x, attack->position.y, attack->render_width, attack->render_height};
+                        
+                        if (!minion.active) continue;
+
+                        if (minion.team != state->tower_manager->towers[attack->owner_id].team)
+                        {
+                            if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
+                            {
+                                SDL_Delay(10);
+                                damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                            }
+                        }
+                    }
             }
 
             attack->active = false;
