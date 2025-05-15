@@ -65,10 +65,10 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
                 if (temp_tower.current_health > 0)
                 {
                     m->is_attacking = true;
-                    if ((SDL_GetTicks() - m->attack_cooldown_timer) > MINION_ATTACK_COOLDOWN)
+                    if ((state->sync_clock - m->attack_cooldown_timer) > MINION_ATTACK_COOLDOWN)
                     {
                         damageTower(*state, i, MINION_DAMAGE_VALUE, true, 0);
-                        m->attack_cooldown_timer = SDL_GetTicks();
+                        m->attack_cooldown_timer = state->sync_clock;
                     }
                 }
                 else
@@ -199,19 +199,19 @@ static void minion_manager_update_callback(EntityManager manager, AppState *stat
     if (!mm || !state)
         return;
 
-    if ((SDL_GetTicks() - mm->minionWaveTimer) > 10000 && mm->activeMinionAmount < MINION_MAX_AMOUNT - 1)
+    if ((state->sync_clock - mm->minionWaveTimer) > 10000 && mm->activeMinionAmount < MINION_MAX_AMOUNT - 1)
     {
-        if ((SDL_GetTicks() - mm->recentMinionTimer) > 500)
+        if ((state->sync_clock - mm->recentMinionTimer) > 500)
         {
             Minion_Init(mm, mm->activeMinionAmount, BLUE_TEAM);
             Minion_Init(mm, mm->activeMinionAmount, RED_TEAM);
-            mm->recentMinionTimer = SDL_GetTicks();
+            mm->recentMinionTimer = state->sync_clock;
             mm->currentMinionWaveAmount++;
 
             if (mm->currentMinionWaveAmount == 6)
             {
                 mm->currentMinionWaveAmount = 0;
-                mm->minionWaveTimer = SDL_GetTicks();
+                mm->minionWaveTimer = state->sync_clock;
             }
         }
     }

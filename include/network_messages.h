@@ -34,7 +34,6 @@ typedef enum MessageType
     MSG_TYPE_S_DAMAGE_TOWER = 105,  /**< Server confirms/broadcasts damage to a tower. */
     MSG_TYPE_S_DAMAGE_BASE = 106,   /**< Server confirms/broadcasts damage to a basea. */
     MSG_TYPE_S_DAMAGE_MINION = 107,  /**< Serever confirms/broadcast damage to minion. */
-    
 
     MSG_TYPE_S_GAME_START = 188,
     MSG_TYPE_S_GAME_RESULT = 189,       /**< Server confirms/broadcasts the match result. */
@@ -80,6 +79,16 @@ typedef struct Msg_WelcomeData
 } Msg_WelcomeData;
 
 /**
+ * @brief Data structure for MSG_TYPE_S_GAME_START.
+ * Sent from server to all clients to indicate the game start.
+ */
+typedef struct Msg_GameStart
+{
+    uint8_t message_type;       /**< Should be MSG_TYPE_S_WELCOME. */
+    Uint64 server_start_time_stamp; /**< the server's authoritative time reference. */
+} Msg_GameStart;
+
+/**
  * @brief Data structure for MSG_TYPE_C_PLAYER_STATE and MSG_TYPE_S_PLAYER_STATE.
  * Used for client updates to server and server broadcasts to clients.
  */
@@ -93,6 +102,7 @@ typedef struct Msg_PlayerStateData
     bool team;
     int current_health;
 } Msg_PlayerStateData;
+
 
 
 /**

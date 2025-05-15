@@ -232,7 +232,19 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
     case MSG_TYPE_S_GAME_START:
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_GAME_START, assigned myClientID = %d", nc_state->my_client_id);
         state->currentGameState = GAME_STATE_PLAYING;
+        if (bytesReceived >= (int) sizeof(Msg_GameStart))
+        {
+            Msg_GameStart data;
+            memcpy(&data, buffer, sizeof(Msg_GameStart));
+            state->server_start_time = data.server_start_time_stamp;
+            state->client_start_time = SDL_GetTicks();
+        }
+        else
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_GAME_START (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_GameStart));
+        }
 
+        
         if (!state->player_manager || !state->camera_state)
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] PlayerManager or CameraState is NULL when processing S_WELCOME.");

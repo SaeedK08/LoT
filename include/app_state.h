@@ -43,6 +43,9 @@ typedef struct AppState
     Uint64 last_tick;
     Uint64 current_tick;
     float delta_time;
+    Uint64 server_start_time;
+    Uint64 client_start_time;
+    Uint64 sync_clock;
 
     // --- Core State ---
     bool is_server;

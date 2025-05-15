@@ -23,6 +23,8 @@ void app_update(void *appstate)
     state->delta_time = max_delta_time;
   }
 
+  state->sync_clock = SDL_GetTicks() - state->client_start_time + state->server_start_time;
+
   // --- Update Entities ---
   // Delegate entity updates to the EntityManager.
   if (state->entity_manager)

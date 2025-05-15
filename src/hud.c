@@ -118,7 +118,7 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
             if (event->key.scancode == SDL_SCANCODE_RETURN || event->key.scancode == SDL_SCANCODE_KP_ENTER)
             {
                 // Process the command when Enter is pressed
-                if (stricmp(command_input_buffer, "start") == 0)
+                if (strcmp(command_input_buffer, "start") == 0)
                 {
                     SDL_Log("Host selected 'start'. Transitioning to GAME_STATE_PLAYING.");
                     state->currentGameState = GAME_STATE_PLAYING;
@@ -127,8 +127,10 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
                     // Broadcast MSG_TYPE_S_GAME_START to all clients
                     if (state->net_server_state)
                     {
-                        uint8_t msg_type = MSG_TYPE_S_GAME_START;
-                        NetServer_BroadcastMessage(state->net_server_state, &msg_type, sizeof(msg_type), -1);
+                        Msg_GameStart msg;
+                        msg.message_type = MSG_TYPE_S_GAME_START;
+                        msg.server_start_time_stamp = SDL_GetTicks();
+                        NetServer_BroadcastMessage(state->net_server_state, &msg, sizeof(Msg_GameStart), -1);
                     }
                     hm->elements[get_hud_index_by_name(state, "lobby_host_msg")].visible = false;
                     hm->elements[get_hud_index_by_name(state, "lobby_host_input")].visible = false;

@@ -133,6 +133,8 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
 
     update_attack_animation(attack, state->delta_time);
 
+    static Uint64 attack_cooldown = 0;
+
     // --- Boundary Check / Lifetime ---
     if (state->map_state)
     {
@@ -185,8 +187,11 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         {
                             if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
                             {
-                                SDL_Delay(10);
-                                damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                                if (state->sync_clock - minion.attack_cooldown_timer > 500)
+                                {
+                                    damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                                    attack_cooldown = state->sync_clock;
+                                }
                             }
                         }
                     }
@@ -237,8 +242,11 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         {
                             if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
                             {
-                                SDL_Delay(10);
-                                damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                                if (state->sync_clock - attack_cooldown > 1000)
+                                {
+                                    damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                                    attack_cooldown = state->sync_clock;
+                                }
                             }
                         }
                     }
