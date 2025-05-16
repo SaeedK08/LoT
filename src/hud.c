@@ -27,6 +27,22 @@ struct HUDManager_s
     TTF_Font *fontSmall;
 };
 
+void hud_finish_msg(AppState *state)
+{
+    for (int i = 0; i < HUD_MAX_ELEMENTS_AMOUNT; i++)
+    {
+        state->HUD_manager->elements[i].visible = false;
+    }
+    create_hud_instance(state, get_hud_element_count(state->HUD_manager), "game_finished_msg", false);
+
+    char text_buffer[32];
+    snprintf(text_buffer, sizeof(text_buffer), "Team: %s has won the game!", state->winningTeam ? "red" : "blue");
+
+    SDL_Color team_color = state->winningTeam ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
+
+    update_hud_instance(state, get_hud_index_by_name(state, "game_finished_msg"), text_buffer, team_color, (SDL_FPoint){0.0f, 0.0f}, 0);
+}
+
 int get_hud_element_count(HUDManager hm)
 {
     return hm->elementCount;
@@ -93,7 +109,7 @@ void update_hud_instance(AppState *state, int index, char text_buffer[], SDL_Col
     }
     else
     {
-        currentElement->rect = (SDL_FRect){dest_point.x, dest_point.y, 0.0f, 0.0f};
+        currentElement->visible = false;
     }
 }
 
@@ -160,14 +176,6 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
                 command_input_buffer[command_input_len] = '\0';
                 update_hud_instance(state, get_hud_index_by_name(state, "lobby_host_input"), command_input_buffer, (SDL_Color){255, 255, 255, 255}, (SDL_FPoint){0.0f, 50.0f}, 0);
             }
-        }
-    }
-
-    if (state->currentGameState == GAME_STATE_FINISHED)
-    {
-        for (int i = 0; i < HUD_MAX_ELEMENTS_AMOUNT; i++)
-        {
-            state->HUD_manager->elements[i].visible = false;
         }
     }
 }

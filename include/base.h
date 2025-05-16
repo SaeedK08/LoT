@@ -79,4 +79,4 @@ void BaseManager_Destroy(BaseManagerState bm_state);
  * @param damageValue The amount of damage to apply.
  * @param sendToServer true if the local client is the one that hit the base.
  */
-void damageBase(AppState state, int baseIndex, float damageValue, bool sendToServer);
+void damageBase(AppState *state, int baseIndex, float damageValue, bool sendToServer);

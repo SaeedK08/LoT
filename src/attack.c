@@ -156,7 +156,7 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                             if (SDL_PointInRectFloat(&attack->position, &tempBase.rect))
                             {
                                 SDL_Log("Attack Hit Base %d", i);
-                                damageBase(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
+                                damageBase(state, i, PLAYER_ATTACK_DAMAGE_VALUE, true);
                             }
                         }
                     }

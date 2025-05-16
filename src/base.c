@@ -201,10 +201,10 @@ void BaseManager_Destroy(BaseManagerState bm_state)
   }
 }
 
-void damageBase(AppState state, int baseIndex, float damageValue, bool sendToServer)
+void damageBase(AppState *state, int baseIndex, float damageValue, bool sendToServer)
 {
 
-  BaseInstance *tempBase = &state.base_manager->bases[baseIndex];
+  BaseInstance *tempBase = &state->base_manager->bases[baseIndex];
 
   if (tempBase->immune)
   {
@@ -219,11 +219,14 @@ void damageBase(AppState state, int baseIndex, float damageValue, bool sendToSer
 
   if (tempBase->current_health <= 0)
   {
-    tempBase->texture = state.base_manager->destroyed_texture;
+    tempBase->texture = state->base_manager->destroyed_texture;
 
     if (sendToServer)
     {
-      NetClient_SendMatchResult(state.net_client_state, state.team);
+      NetClient_SendMatchResult(state->net_client_state, state->team);
+      state->currentGameState = GAME_STATE_FINISHED;
+      state->winningTeam = state->team;
+      hud_finish_msg(state);
     }
 
     SDL_Log("Base %d Destroyed", baseIndex);
@@ -231,6 +234,6 @@ void damageBase(AppState state, int baseIndex, float damageValue, bool sendToSer
 
   if (sendToServer)
   {
-    NetClient_SendDamageBaseRequest(state.net_client_state, baseIndex, damageValue);
+    NetClient_SendDamageBaseRequest(state->net_client_state, baseIndex, damageValue);
   }
 }

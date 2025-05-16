@@ -44,3 +44,5 @@ void update_hud_instance(AppState *state, int index, char text_buffer[], SDL_Col
 int get_hud_element_count(HUDManager hm);
 
 int get_hud_index_by_name(AppState *state, char name[]);
+
+void hud_finish_msg(AppState *state);

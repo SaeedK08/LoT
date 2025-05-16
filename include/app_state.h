@@ -53,6 +53,8 @@ typedef struct AppState
     bool team;
     GameState currentGameState;
 
+    bool winningTeam;
+
     // --- Module State Pointers (ADTs) ---
     EntityManager entity_manager;
     MapState map_state;

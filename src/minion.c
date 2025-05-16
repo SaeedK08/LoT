@@ -91,7 +91,7 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
             {
                 if (SDL_GetTicks() - m->attack_cooldown_timer > MINION_ATTACK_COOLDOWN)
                 {
-                    damageBase(*state, 0, MINION_DAMAGE_VALUE, true);
+                    damageBase(state, 0, MINION_DAMAGE_VALUE, true);
                     m->attack_cooldown_timer = SDL_GetTicks();
                 }
             }
@@ -108,7 +108,7 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
             {
                 if (SDL_GetTicks() - m->attack_cooldown_timer > MINION_ATTACK_COOLDOWN)
                 {
-                    damageBase(*state, 1, MINION_DAMAGE_VALUE, true);
+                    damageBase(state, 1, MINION_DAMAGE_VALUE, true);
                     m->attack_cooldown_timer = SDL_GetTicks();
                 }
             }

@@ -380,7 +380,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             memcpy(&state_data, buffer, sizeof(Msg_DamageBase));
             if (state->base_manager)
             {
-                damageBase(*state, state_data.baseIndex, state_data.damageValue, false);
+                damageBase(state, state_data.baseIndex, state_data.damageValue, false);
             }
         }
         else
@@ -395,7 +395,9 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             Msg_MatchResult state_data;
             memcpy(&state_data, buffer, sizeof(Msg_MatchResult));
             SDL_Log("\n---\nMatch Won by team %s\n---\n", state_data.winningTeam ? "RED" : "BLUE");
+            hud_finish_msg(state);
             state->currentGameState = GAME_STATE_FINISHED;
+            state->winningTeam = state_data.winningTeam ? RED_TEAM : BLUE_TEAM;
         }
         else
         {
