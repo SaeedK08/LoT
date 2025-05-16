@@ -37,7 +37,9 @@ HUDManager HUDManager_Init(AppState *state);
  */
 // void HUDManager_Destroy(HUDManager hm);
 
-void create_hud_instace(AppState *state, int index, char name[], bool visible, char text_buffer[], SDL_Color color, bool changeable, SDL_FPoint dest_point, FontSize fontSize);
+void create_hud_instance(AppState *state, int index, char name[], bool changeable);
+
+void update_hud_instance(AppState *state, int index, char text_buffer[], SDL_Color color, SDL_FPoint dest_point, FontSize fontSize);
 
 int get_hud_element_count(HUDManager hm);
 

@@ -9,7 +9,7 @@
  */
 static void render_single_tower(const TowerInstance *tower, AppState *state)
 {
-    if (!tower || !tower->is_active || !tower->texture || !state || !state->renderer || !state->camera_state)
+    if (!tower || !tower->texture || !state || !state->renderer || !state->camera_state)
     {
         return;
     }
@@ -38,8 +38,8 @@ static void render_single_tower(const TowerInstance *tower, AppState *state)
 
     SDL_Color team_color = tower->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
-    create_hud_instace(state, get_hud_index_by_name(state, tower_name), tower_name, true, text_buffer,
-                       team_color, true, (SDL_FPoint){towerX, towerY - 30}, 0);
+    update_hud_instance(state, get_hud_index_by_name(state, tower_name), text_buffer,
+                        team_color, (SDL_FPoint){towerX, towerY - 30}, 0);
 }
 
 /**
@@ -50,17 +50,12 @@ static void render_single_tower(const TowerInstance *tower, AppState *state)
  */
 static void update_single_tower(TowerInstance *tower, AppState *state, int towerIndex)
 {
-    if (!tower || !tower->is_active || !state)
+    if (!tower || !state || !state->is_server || tower->destroyed)
         return;
 
     if (tower->attack_cooldown_timer > 0.0f)
     {
         tower->attack_cooldown_timer -= state->delta_time;
-    }
-
-    if (!state->is_server)
-    {
-        return;
     }
 
     if (tower->attack_cooldown_timer <= 0.0f)
@@ -107,7 +102,7 @@ static void update_single_tower(TowerInstance *tower, AppState *state, int tower
                 if (MinionManager_GetMinionPosition(mm, i, &minion_pos))
                 {
                     float dx = minion_pos.x - tower->position.x;
-                    float dy = minion_pos.y  - tower->position.y;
+                    float dy = minion_pos.y - tower->position.y;
                     float dest_sq = dx * dx + dy * dy;
                     if (dest_sq <= min_dist_sq)
                     {
@@ -286,14 +281,13 @@ TowerManagerState TowerManager_Init(AppState *state)
         tm_state->towers[i] = (TowerInstance){
             .position = {TOWER_RED_1_X + i * TOWER_DISTANCE_X, BUILDINGS_POS_Y},
             .texture = tm_state->red_texture,
-            .max_health = TOWER_HEALTH_MAX,
             .current_health = TOWER_HEALTH_MAX,
-            .is_active = true,
             .attack_cooldown_timer = 0.0f,
             .team = RED_TEAM,
             .teamFirstTower = (i == 1) ? true : false,
             .immune = (i == 0) ? true : false,
             .index = i,
+            .destroyed = false,
         };
 
         tm_state->towers[i].rect = (SDL_FRect){
@@ -305,8 +299,7 @@ TowerManagerState TowerManager_Init(AppState *state)
         char tower_name[32];
         snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
 
-        create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
+        create_hud_instance(state, get_hud_element_count(state->HUD_manager), tower_name, true);
     }
 
     for (int i = MAX_TOWERS_PER_TEAM; i < MAX_TOTAL_TOWERS; i++)
@@ -314,14 +307,13 @@ TowerManagerState TowerManager_Init(AppState *state)
         tm_state->towers[i] = (TowerInstance){
             .position = {TOWER_BLUE_1_X - (i - MAX_TOWERS_PER_TEAM) * TOWER_DISTANCE_X, BUILDINGS_POS_Y},
             .texture = tm_state->blue_texture,
-            .max_health = TOWER_HEALTH_MAX,
             .current_health = TOWER_HEALTH_MAX,
-            .is_active = true,
             .attack_cooldown_timer = 0.0f,
             .team = BLUE_TEAM,
             .teamFirstTower = (i == 3) ? true : false,
             .immune = (i == 2) ? true : false,
             .index = i,
+            .destroyed = false,
         };
 
         tm_state->towers[i].rect = (SDL_FRect){
@@ -333,8 +325,7 @@ TowerManagerState TowerManager_Init(AppState *state)
         char tower_name[32];
         snprintf(tower_name, sizeof(tower_name), "tower_%d_health_value", i);
 
-        create_hud_instace(state, get_hud_element_count(state->HUD_manager), tower_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
+        create_hud_instance(state, get_hud_element_count(state->HUD_manager), tower_name, true);
     }
 
     tm_state->tower_count = MAX_TOTAL_TOWERS;
@@ -395,6 +386,7 @@ void damageTower(AppState state, int towerIndex, float damageValue, bool sendToS
     if (tempTower->current_health <= 0)
     {
         tempTower->texture = state.tower_manager->destroyed_texture;
+        tempTower->destroyed = true;
         SDL_Log("Tower %d Destroyed", towerIndex);
 
         if (tempTower->teamFirstTower)

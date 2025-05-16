@@ -190,7 +190,6 @@ static void internal_send_local_player_state(NetClientState nc_state, AppState *
     NetClient_SendBuffer(nc_state, &data, sizeof(Msg_PlayerStateData));
 }
 
-
 /**
  * @brief Processes a single message received from the server based on its type.
  * @param nc_state The NetClientState instance.
@@ -232,7 +231,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
     case MSG_TYPE_S_GAME_START:
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[Client] Received S_GAME_START, assigned myClientID = %d", nc_state->my_client_id);
         state->currentGameState = GAME_STATE_PLAYING;
-        if (bytesReceived >= (int) sizeof(Msg_GameStart))
+        if (bytesReceived >= (int)sizeof(Msg_GameStart))
         {
             Msg_GameStart data;
             memcpy(&data, buffer, sizeof(Msg_GameStart));
@@ -244,7 +243,6 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_GAME_START (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_GameStart));
         }
 
-        
         if (!state->player_manager || !state->camera_state)
         {
             SDL_LogError(SDL_LOG_CATEGORY_ERROR, "[Client] PlayerManager or CameraState is NULL when processing S_WELCOME.");
@@ -257,7 +255,8 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
             NetClient_Destroy(nc_state);
             return;
         }
-        create_hud_instace(state, get_hud_index_by_name(state, "lobby_client_msg"), "lobby_client_msg", false, "Client: Wating for host to start the game", (SDL_Color){255, 255, 255, 255}, false, (SDL_FPoint){0.0f, 0.0f}, 0);
+        // Hide lobby_client_msg after game start
+        update_hud_instance(state, get_hud_index_by_name(state, "lobby_client_msg"), "", (SDL_Color){255, 255, 255, 255}, (SDL_FPoint){0.0f, 50.0f}, 0);
 
         break;
 
@@ -342,7 +341,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
         }
         break;
 
-    case MSG_TYPE_S_DAMAGE_MINION: 
+    case MSG_TYPE_S_DAMAGE_MINION:
         if (bytesReceived >= (int)sizeof(Msg_DamageMinion))
         {
             Msg_DamageMinion state_data;
@@ -352,7 +351,7 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
                 damageMinion(*state, state_data.minionIndex, 0, false, state_data.current_health);
             }
         }
-        else 
+        else
         {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_DAMAGE_MINION msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_DamageMinion));
         }
@@ -681,7 +680,6 @@ bool NetClient_SendDamageMinionRequest(NetClientState nc_state, int minionIndex,
     msg.current_health = sentCurrentHealth;
     return NetClient_SendBuffer(nc_state, &msg, sizeof(Msg_DamageMinion));
 }
-
 
 bool NetClient_SendDamageTowerRequest(NetClientState nc_state, int towerIndex, float damageValue, float current_health)
 {

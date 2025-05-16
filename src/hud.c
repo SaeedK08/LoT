@@ -44,7 +44,7 @@ int get_hud_index_by_name(AppState *state, char name[])
     return -1;
 }
 
-void create_hud_instace(AppState *state, int index, char name[], bool visible, char text_buffer[], SDL_Color color, bool changeable, SDL_FPoint dest_point, FontSize fontSize)
+void create_hud_instance(AppState *state, int index, char name[], bool changeable)
 {
     HUDManager hm = state ? state->HUD_manager : NULL;
     // Ensure local HUD exists and required managers are available.
@@ -69,10 +69,19 @@ void create_hud_instace(AppState *state, int index, char name[], bool visible, c
 
     HUDInstance *currentElement = &state->HUD_manager->elements[index];
     strcpy(currentElement->name, name);
-    strcpy(currentElement->text_buffer, text_buffer);
-    currentElement->visible = visible;
-    currentElement->color = color;
     currentElement->changeable = changeable;
+}
+
+void update_hud_instance(AppState *state, int index, char text_buffer[], SDL_Color color, SDL_FPoint dest_point, FontSize fontSize)
+{
+    HUDManager hm = state ? state->HUD_manager : NULL;
+    // Ensure local HUD exists and required managers are available.
+    if (!hm || !state)
+    {
+        return;
+    }
+
+    HUDInstance *currentElement = &state->HUD_manager->elements[index];
 
     if (strlen(text_buffer) >= 1)
     {
@@ -80,6 +89,7 @@ void create_hud_instace(AppState *state, int index, char name[], bool visible, c
         SDL_Surface *textSurface = TTF_RenderText_Blended(currentFont, text_buffer, strlen(text_buffer), color);
         currentElement->texture = SDL_CreateTextureFromSurface(state->renderer, textSurface);
         currentElement->rect = (SDL_FRect){dest_point.x, dest_point.y, (float)textSurface->w, (float)textSurface->h};
+        currentElement->visible = true;
     }
     else
     {
@@ -110,7 +120,7 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
             {
                 strcat(command_input_buffer, event->text.text);
                 command_input_len += strlen(event->text.text);
-                create_hud_instace(state, get_hud_index_by_name(state, "lobby_host_input"), "lobby_host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f}, 0);
+                update_hud_instance(state, get_hud_index_by_name(state, "lobby_host_input"), command_input_buffer, (SDL_Color){255, 255, 255, 255}, (SDL_FPoint){0.0f, 50.0f}, 0);
             }
         }
         else if (event->type == SDL_EVENT_KEY_DOWN)
@@ -148,8 +158,16 @@ static void HUD_manager_event_callback(EntityManager manager, AppState *state, S
                 // Handle backspace
                 command_input_len--;
                 command_input_buffer[command_input_len] = '\0';
-                create_hud_instace(state, get_hud_index_by_name(state, "lobby_host_input"), "lobby_host_input", true, command_input_buffer, (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 50.0f}, 0);
+                update_hud_instance(state, get_hud_index_by_name(state, "lobby_host_input"), command_input_buffer, (SDL_Color){255, 255, 255, 255}, (SDL_FPoint){0.0f, 50.0f}, 0);
             }
+        }
+    }
+
+    if (state->currentGameState == GAME_STATE_FINISHED)
+    {
+        for (int i = 0; i < HUD_MAX_ELEMENTS_AMOUNT; i++)
+        {
+            state->HUD_manager->elements[i].visible = false;
         }
     }
 }

@@ -32,14 +32,13 @@ typedef struct BaseManagerState_s *BaseManagerState;
  */
 typedef struct BaseInstance
 {
-    bool team;            /**< Which team the base belongs to. */
+    int index;
     SDL_FRect rect;       /**< Rect for this base. */
     SDL_FPoint position;  /**< World position (center). */
     SDL_Texture *texture; /**< Texture for this base. */
     int current_health;   /**< Current health points. */
-    int max_health;       /**< Maximum health points. */
+    bool team;            /**< Which team the base belongs to. */
     bool immune;
-    int index;
 } BaseInstance;
 
 /**

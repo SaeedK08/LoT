@@ -56,25 +56,24 @@ typedef struct PlayerManager_s *PlayerManager;
  */
 typedef struct PlayerInstance
 {
+    int index;
     SDL_FRect rect;
     SDL_FPoint position;      /**< Current world position (center). */
     SDL_FRect sprite_portion; /**< The source rect defining the current animation frame. */
-    float anim_timer;         /**< Timer used to advance animation frames. */
-    int current_frame;        /**< Index of the current frame within the current animation sequence. */
-    SDL_FlipMode flip_mode;   /**< Rendering flip state (horizontal). */
-    bool active;              /**< Whether this player slot is currently in use. */
-    bool is_local;            /**< True if this is the player controlled by this game instance. */
-    bool is_moving;           /**< Tracks if the player is currently considered moving (for animation). */
+    SDL_Texture *texture;
+    SDL_FlipMode flip_mode; /**< Rendering flip state (horizontal). */
+    float anim_timer;       /**< Timer used to advance animation frames. */
+    int current_frame;      /**< Index of the current frame within the current animation sequence. */
+    bool active;            /**< Whether this player slot is currently in use. */
+    bool is_local;          /**< True if this is the player controlled by this game instance. */
+    bool is_moving;         /**< Tracks if the player is currently considered moving (for animation). */
     bool team;
     bool dead;
     int deathTime;
     bool playDeathAnim;
     bool playHurtAnim;
     bool playAttackAnim;
-    SDL_Texture *texture;
     int current_health; /**< Current health points. */
-    int max_health;     /**< Maximum health points. */
-    int index;
 } PlayerInstance;
 
 /**

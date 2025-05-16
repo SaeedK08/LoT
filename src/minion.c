@@ -1,6 +1,5 @@
 #include "../include/minion.h"
 
-
 static void minion_manager_cleanup_callback(EntityManager manager, AppState *state)
 {
     (void)manager;
@@ -79,14 +78,14 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
             collision = true;
         }
     }
-    
-    // Check for collision with the enemy's base 
+
+    // Check for collision with the enemy's base
     if (m->team)
     {
         BaseInstance tempBase = state->base_manager->bases[0];
         if (SDL_HasRectIntersectionFloat(&minionRect, &tempBase.rect))
         {
-            m->is_attacking = true; 
+            m->is_attacking = true;
             collision = true;
             if (tempBase.current_health > 0)
             {
@@ -98,7 +97,7 @@ static void update_local_minion_movment(MinionData *m, AppState *state)
             }
         }
     }
-    if(!m->team)
+    if (!m->team)
     {
         BaseInstance tempBase = state->base_manager->bases[1];
         if (SDL_HasRectIntersectionFloat(&minionRect, &tempBase.rect))
@@ -185,9 +184,10 @@ static bool Minion_Init(MinionManager mm, uint8_t minionIndex, bool team)
     currentMinion->is_attacking = false;
     currentMinion->active = true;
     currentMinion->team = team;
-    mm->activeMinionAmount++;
 
-    SDL_Log("[Minion_Init] Initialized minion locally\n");
+    SDL_Log("[Minion_Init] Initialized minion %d\n", mm->activeMinionAmount);
+
+    mm->activeMinionAmount++;
 
     return true;
 }
@@ -266,21 +266,22 @@ void damageMinion(AppState state, int minionIndex, float damageValue, bool sendT
 {
     MinionData *m = &state.minion_manager->minions[minionIndex];
 
-    if(!sendToServer)
+    if (!sendToServer)
     {
         m->current_health = sentCurrentHealth;
     }
-    
-    if(m->current_health > 0 && sendToServer)
+
+    if (m->current_health > 0 && sendToServer)
     {
         m->current_health -= damageValue;
         sentCurrentHealth = m->current_health;
         NetClient_SendDamageMinionRequest(state.net_client_state, minionIndex, sentCurrentHealth);
     }
 
-    if(m->current_health <= 0)
+    if (m->current_health <= 0)
     {
-        if (!sendToServer) SDL_Log("[client] destryed minion\n");
+        if (!sendToServer)
+            SDL_Log("[client] destryed minion\n");
         m->active = false;
     }
 }
@@ -357,7 +358,7 @@ bool MinionManager_GetMinionPosition(MinionManager mm, int minionIndex, SDL_FPoi
     MinionData minion = mm->minions[minionIndex];
     if (!minion.active)
     {
-        return false;           // No minion was found in the given index
+        return false; // No minion was found in the given index
     }
 
     *out_pos = minion.position;

@@ -3,14 +3,6 @@
 // --- Internal Structures ---
 
 /**
- * @brief Type-specific data for a fireball attack.
- */
-typedef struct FireballData_s
-{
-    int _placeholder; // To avoid empty struct issues if nothing is needed yet
-} FireballData;
-
-/**
  * @brief Represents a single active attack instance in the game world.
  */
 typedef struct AttackInstance
@@ -33,12 +25,6 @@ typedef struct AttackInstance
     float anim_timer;         /**< Timer used to advance animation frames. */
     int current_frame;        /**< Index of the current frame within the current animation sequence. */
     bool team;
-    // --- Type-Specific Data ---
-    union
-    {
-        FireballData fireball;
-    } specific_data;
-
 } AttackInstance;
 
 /**
@@ -180,8 +166,9 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                         MinionData minion = state->minion_manager->minions[i];
                         SDL_FRect minionRect = {minion.position.x, minion.position.y, MINION_WIDTH, MINION_HEIGHT};
                         SDL_FRect attackRect = {attack->position.x, attack->position.y, attack->render_width, attack->render_height};
-                        
-                        if (!minion.active) continue;
+
+                        if (!minion.active)
+                            continue;
 
                         if (minion.team != state->team)
                         {
@@ -231,25 +218,26 @@ static void update_single_attack(AttackInstance *attack, AppState *state)
                     }
                 }
                 for (int i = 0; i < MINION_MAX_AMOUNT; i++)
-                    {
-                        MinionData minion = state->minion_manager->minions[i];
-                        SDL_FRect minionRect = {minion.position.x, minion.position.y, MINION_WIDTH, MINION_HEIGHT};
-                        SDL_FRect attackRect = {attack->position.x, attack->position.y, attack->render_width, attack->render_height};
-                        
-                        if (!minion.active) continue;
+                {
+                    MinionData minion = state->minion_manager->minions[i];
+                    SDL_FRect minionRect = {minion.position.x, minion.position.y, MINION_WIDTH, MINION_HEIGHT};
+                    SDL_FRect attackRect = {attack->position.x, attack->position.y, attack->render_width, attack->render_height};
 
-                        if (minion.team != state->tower_manager->towers[attack->owner_id].team)
+                    if (!minion.active)
+                        continue;
+
+                    if (minion.team != state->tower_manager->towers[attack->owner_id].team)
+                    {
+                        if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
                         {
-                            if (SDL_HasRectIntersectionFloat(&attackRect, &minionRect))
+                            if (state->sync_clock - attack_cooldown > 1000)
                             {
-                                if (state->sync_clock - attack_cooldown > 1000)
-                                {
-                                    damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
-                                    attack_cooldown = state->sync_clock;
-                                }
+                                damageMinion(*state, i, PLAYER_ATTACK_DAMAGE_VALUE, true, 0);
+                                attack_cooldown = state->sync_clock;
                             }
                         }
                     }
+                }
             }
 
             attack->active = false;
@@ -667,11 +655,6 @@ void AttackManager_ServerSpawnTowerAttack(AttackManager am, AppState *state, Att
 
     // --- 1. Get Tower ---
     TowerInstance *firingTower = &state->tower_manager->towers[towerIndex];
-    if (!firingTower->is_active)
-    {
-        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Attack Spawn Tower] Tower %d is not active, cannot fire.", towerIndex);
-        return; // Don't fire from inactive/destroyed towers
-    }
 
     // --- 2. Get Start Position ---
     SDL_FPoint start_pos = firingTower->position;

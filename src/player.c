@@ -11,7 +11,7 @@ static void playerDeathTimer(PlayerInstance *p)
         SDL_Log("Player is back to life");
         p->dead = false;
         p->playDeathAnim = false;
-        p->current_health = p->max_health;
+        p->current_health = PLAYER_HEALTH_MAX;
         p->position = p->team ? (SDL_FPoint){BASE_RED_POS_X + 300, BUILDINGS_POS_Y} : (SDL_FPoint){BASE_BLUE_POS_X - 300, BUILDINGS_POS_Y};
     }
 }
@@ -283,8 +283,8 @@ static void render_single_player(PlayerManager pm, PlayerInstance *p, AppState *
 
     SDL_Color team_color = p->team ? (SDL_Color){255, 0, 0, 255} : (SDL_Color){0, 0, 255, 255};
 
-    create_hud_instace(state, get_hud_index_by_name(state, player_name), player_name, true, text_buffer,
-                       team_color, true, (SDL_FPoint){screen_x, screen_y - 20}, 1);
+    update_hud_instance(state, get_hud_index_by_name(state, player_name), text_buffer,
+                        team_color, (SDL_FPoint){screen_x, screen_y - 20}, 1);
 }
 
 // --- Static Callback Functions (for EntityManager) ---
@@ -514,7 +514,6 @@ bool PlayerManager_SetLocalPlayerID(AppState *state, uint8_t client_id)
     current_player->current_frame = 0;
     current_player->anim_timer = 0.0f;
     current_player->texture = pm->player_texture;
-    current_player->max_health = PLAYER_HEALTH_MAX;
     current_player->current_health = PLAYER_HEALTH_MAX;
     current_player->index = client_id;
 
@@ -535,10 +534,7 @@ bool PlayerManager_SetLocalPlayerID(AppState *state, uint8_t client_id)
     char player_name[32];
     snprintf(player_name, sizeof(player_name), "player_%d_health_value", client_id);
 
-    SDL_Log("player_name %s", player_name);
-
-    create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
-                       (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
+    create_hud_instance(state, get_hud_element_count(state->HUD_manager), player_name, true);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Local player ID set to %d", client_id);
     return true;
@@ -576,8 +572,7 @@ void PlayerManager_UpdateRemotePlayer(AppState *state, const Msg_PlayerStateData
         char player_name[32];
         snprintf(player_name, sizeof(player_name), "player_%d_health_value", id);
 
-        create_hud_instace(state, get_hud_element_count(state->HUD_manager), player_name, false, "",
-                           (SDL_Color){255, 255, 255, 255}, true, (SDL_FPoint){0.0f, 0.0f}, 0);
+        create_hud_instance(state, get_hud_element_count(state->HUD_manager), player_name, true);
     }
 
     // Apply the received state directly.

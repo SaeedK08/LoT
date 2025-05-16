@@ -38,17 +38,16 @@ typedef struct TowerManagerState_s *TowerManagerState;
  */
 typedef struct TowerInstance
 {
+    int index;
     bool team;                   /**< Which team the tower belongs to. */
     SDL_FRect rect;              /**< Rect for this tower. */
     SDL_FPoint position;         /**< World position (center or base). */
     SDL_Texture *texture;        /**< Texture for this tower. */
     float current_health;        /**< Current health points. */
-    float max_health;            /**< Maximum health points. */
     float attack_cooldown_timer; /**< Time remaining until the next attack can occur. */
-    bool is_active;              /**< Flag indicating if the tower is currently functional. */
     bool teamFirstTower;
     bool immune;
-    int index;
+    bool destroyed;
 } TowerInstance;
 
 /**
