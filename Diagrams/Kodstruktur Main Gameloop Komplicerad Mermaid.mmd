@@ -1,0 +1,120 @@
+---
+config:
+  layout: dagre
+  look: neo
+  theme: mc
+---
+flowchart TD
+ subgraph Initieringsfas["SDL_AppInit"]
+    direction TB
+        B1["Allokera AppState"]
+        B2["Initiera SDL Subsystem (Video, Net, Image, TTF)"]
+        B3["Skapa Fönster & Renderer"]
+        B4["Skapa EntityManager"]
+        B5["Initiera Spel-Managers (NetServer*, NetClient, Map, HUD, Base, Tower, Attack, Player, Minion, Camera)"]
+        B6["Registrera Managers hos EntityManager med deras callback-funktioner (update, render, event, cleanup)"]
+        D["Intern SDL3 Huvudloop Körs"]
+        F["Felhantering och Frigör Resurser"]
+  end
+ subgraph Huvudloop["Intern SDL3 Huvudloop"]
+    direction TB
+        D_Event{"SDL_AppEvent Anropas vid Händelse"}
+        D_Event_Quit{"Kolla om Händelse är SDL_EVENT_QUIT"}
+        Request_Quit["Sätt quit_requested = true"]
+        D_Return_Event["Returnera SDL_APP_SUCCESS från SDL_AppEvent"]
+        D_Event_Mgr["EntityManager_HandleEventsAll anropas"]
+        D_Return_Event_Cont["Returnera SDL_APP_CONTINUE från SDL_AppEvent"]
+        D_Iterate{"SDL_AppIterate Anropas Kontinuerligt"}
+        D_Iterate_Update["app_update anropas"]
+        D_Update_DeltaTime["Beräkna delta_time"]
+        D_Update_Mgr@{ label: "EntityManager_UpdateAll anropas (kör alla managers' 'update')" }
+        D_Iterate_Render["app_render anropas"]
+        D_Render_Clear["Rensa Skärmen"]
+        D_Render_Mgr@{ label: "EntityManager_RenderAll anropas (kör alla managers' 'render')" }
+        D_Render_Present["Presentera Renderer"]
+        D_Iterate_Wait["app_wait_for_next_frame för FPS-kontroll"]
+        D_Iterate_QuitCheck{"Kolla om quit_requested är true"}
+        D_Return_Iterate_Success["Returnera SDL_APP_SUCCESS från SDL_AppIterate"]
+        D_Return_Iterate_Cont["Returnera SDL_APP_CONTINUE från SDL_AppIterate"]
+        G{"SDL3 Anropar: SDL_AppQuit"}
+  end
+    A["Applikation Startar"] --> B["SDL3 Anropar: SDL_AppInit"]
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 --> B5
+    B5 --> B6
+    B6 -- Lyckad Initiering --> D
+    B2 -- Initieringsfel --> F
+    B3 -- Initieringsfel --> F
+    B4 -- Initieringsfel --> F
+    B5 -- Initieringsfel --> F
+    B6 -- Initieringsfel --> F
+    D --> D_Event & D_Iterate
+    D_Event --> D_Event_Quit
+    D_Event_Quit -- Ja --> Request_Quit
+    Request_Quit --> D_Return_Event
+    D_Event_Quit -- Nej --> D_Event_Mgr
+    D_Event_Mgr --> D_Return_Event_Cont
+    D_Return_Event --> D
+    D_Return_Event_Cont --> D
+    D_Iterate --> D_Iterate_Update
+    D_Iterate_Update --> D_Update_DeltaTime
+    D_Update_DeltaTime --> D_Update_Mgr
+    D_Update_Mgr --> D_Iterate_Render
+    D_Iterate_Render --> D_Render_Clear
+    D_Render_Clear --> D_Render_Mgr
+    D_Render_Mgr --> D_Render_Present
+    D_Render_Present --> D_Iterate_Wait
+    D_Iterate_Wait --> D_Iterate_QuitCheck
+    D_Iterate_QuitCheck -- Ja --> D_Return_Iterate_Success
+    D_Iterate_QuitCheck -- Nej --> D_Return_Iterate_Cont
+    D_Return_Iterate_Success --> G
+    D_Return_Iterate_Cont --> D
+    G --> G0["EntityManager_Destroy anropas"]
+    G0 --> G1["Specifika Managers Destroy-funktioner anropas (frigör deras ADT-minne)"]
+    G1 --> G2["Frigör Övriga SDL Resurser (fönster, renderer, cursor)"]
+    G2 --> G3["Stäng SDL Subsystem"]
+    G3 --> G4["Frigör AppState"]
+    G4 --> H["Applikation Avslutas"]
+    D_Update_Mgr@{ shape: rect}
+    D_Render_Mgr@{ shape: rect}
+     B1:::gameLogicBlock
+     B2:::gameLogicBlock
+     B3:::gameLogicBlock
+     B4:::gameLogicBlock
+     B5:::gameLogicBlock
+     B6:::gameLogicBlock
+     D:::mainLoopControl
+     F:::errorState
+     D_Event:::sdlCallback
+     D_Event_Quit:::decision
+     Request_Quit:::gameLogicBlock
+     D_Return_Event:::gameLogicBlock
+     D_Event_Mgr:::gameLogicBlock
+     D_Return_Event_Cont:::gameLogicBlock
+     D_Iterate:::sdlCallback
+     D_Update_DeltaTime:::gameLogicBlock
+     D_Update_Mgr:::gameLogicBlock
+     D_Render_Clear:::gameLogicBlock
+     D_Render_Mgr:::gameLogicBlock
+     D_Render_Present:::gameLogicBlock
+     D_Iterate_Wait:::gameLogicBlock
+     D_Iterate_QuitCheck:::decision
+     D_Return_Iterate_Success:::gameLogicBlock
+     D_Return_Iterate_Cont:::gameLogicBlock
+     G:::sdlCallback
+     A:::startEnd
+     B:::sdlCallback
+     G0:::gameLogicBlock
+     G1:::gameLogicBlock
+     G2:::gameLogicBlock
+     G3:::gameLogicBlock
+     G4:::gameLogicBlock
+     H:::startEnd
+    classDef startEnd fill:#bbb,stroke:#333,stroke-width:2px,color:#333
+    classDef sdlCallback fill:#87CEEB,stroke:#333,stroke-width:2px,color:#333
+    classDef gameLogicBlock fill:#90EE90,stroke:#333,stroke-width:2px,color:#333
+    classDef errorState fill:#FFB6C1,stroke:#333,stroke-width:2px,color:#333
+    classDef mainLoopControl fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#333
+    classDef decision fill:#FFFACD,stroke:#333,stroke-width:2px,color:#333

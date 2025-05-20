@@ -1,0 +1,38 @@
+graph TD
+    A["Start Server"] --> B{"Initiera SDL & SDL_net"};
+    B -- Lyckades --> C{"Skapa Lyssningssocket"};
+    C -- Lyckades --> D["Registrera Servermodul \n (net_server) hos EntityManager"];
+    D -- Lyckades --> E["Server Huvudloop \n (via EntityManager & SDL_AppIterate)"];
+    C -- Misslyckades --> F["Felmeddelande & Avsluta"];
+    B -- Misslyckades --> F;
+
+    subgraph Server Huvudloop
+        direction LR
+        E1["Acceptera Nya Klienter"] --> E2{"Ta Emot Data \n från Anslutna Klienter"};
+        E2 -- "Inga meddelanden" --> E1;
+        E2 -- "Meddelande Mottaget" --> E3{"Bearbeta Klientmeddelande"};
+        E3 --> E4["Uppdatera Speltillstånd \n (om nödvändigt)"];
+        E4 --> E5["Broadcasta Uppdateringar \n till Klienter"];
+        E5 --> E1;
+        E3 -- "Klient Frånkopplad" --> E6["Hantera Frånkoppling"];
+        E6 --> E1;
+    end
+
+    E -- "Avsluta Applikation" --> G["Stäng Ner Server"];
+    G --> H["Frigör Resurser"];
+
+    %% Styling (liknande den uppladdade bilden)
+    classDef start fill:#bbb,stroke:#333,stroke-width:2px,color:#333;
+    classDef init fill:#9f9,stroke:#333,stroke-width:2px,color:#333;
+    classDef loop fill:#ff9,stroke:#333,stroke-width:2px,color:#333;
+    classDef process fill:#dfd,stroke:#333,stroke-width:2px,color:#333;
+    classDef broadcast fill:#bdf,stroke:#333,stroke-width:2px,color:#333;
+    classDef decision fill:#8cf,stroke:#333,stroke-width:2px,color:#333;
+    classDef shutdown fill:#f99,stroke:#333,stroke-width:2px,color:#333;
+
+    class A,H start;
+    class B,C,D,G init;
+    class E,E1,E2,E6 loop;
+    class E3,E4 process;
+    class E5 broadcast;
+    class F shutdown;

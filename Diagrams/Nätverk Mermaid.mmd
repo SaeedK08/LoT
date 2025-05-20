@@ -1,0 +1,127 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+ subgraph subGraph0["Serverflöde (Host)"]
+    direction TB
+        S1["Initiera Server (NetServer_Init)"]
+        S2["Skapa lyssningssocket port 8080"]
+        S3{"Väntar på klientanslutningar"}
+        S4["Acceptera Klient & Tilldela ID"]
+        S5["Klient skickar: C_HELLO"]
+        S6["Server svarar: S_WELCOME & S_GAME_START"]
+        S_Loop{"Server Huvudloop"}
+        S_Broadcast_State["Broadcasta S_PLAYER_STATE till övriga"]
+        S_Handle_Attack["Hantera Attacklogik"]
+        S_Broadcast_Attack["Broadcasta S_SPAWN_ATTACK"]
+        S_Handle_Damage["Validera & Hantera Skada"]
+        S_Broadcast_Damage["Broadcasta S_DAMAGE"]
+        S_Handle_Result["Validera Resultat"]
+        S_Broadcast_Result["Broadcasta S_GAME_RESULT"]
+        S_End["Spel Slut"]
+        S_Disconnect["Hantera Frånkoppling (Broadcasta S_PLAYER_DISCONNECT)"]
+  end
+ subgraph subGraph1["Klientflöde (Join)"]
+    direction TB
+        C1["Initiera Klient (NetClient_Init)"]
+        C2["Anslut till Server (IP & Port 8080)"]
+        C3["Skicka: C_HELLO"]
+        C4{"Väntar på Serverns svar"}
+        C_Loop{"Klient Huvudloop"}
+        C_Send_State["Skicka C_PLAYER_STATE (periodiskt)"]
+        C_Send_Attack["Skicka C_SPAWN_ATTACK"]
+        C_Send_Damage["Skicka C_DAMAGE (Tower/Base/Minion)"]
+        C_Send_Result["Skicka C_GAME_RESULT"]
+        C_Update_Remote["Uppdatera fjärrspelare lokalt"]
+        C_Handle_Attack["Skapa/visa attack lokalt"]
+        C_Handle_Damage["Applicera skada lokalt"]
+        C_End["Spel Slut"]
+        C_Error["Felhantering/Visa frånkoppling"]
+  end
+    A_Start["Spel Startas"] --> A_Val{"Välj: Host (Server) eller Join (Klient)"}
+    S1 --> S2
+    S2 --> S3
+    S3 -- Ny Klient Ansluter --> S4
+    S4 --> S5
+    S5 --> S6
+    S6 --> S_Loop
+    S_Loop -- Mottar C_PLAYER_STATE från Klient --> S_Broadcast_State
+    S_Broadcast_State --> S_Loop
+    S_Loop -- Mottar C_SPAWN_ATTACK från Klient --> S_Handle_Attack
+    S_Handle_Attack --> S_Broadcast_Attack
+    S_Broadcast_Attack --> S_Loop
+    S_Loop -- Mottar C_DAMAGE från Klient --> S_Handle_Damage
+    S_Handle_Damage --> S_Broadcast_Damage
+    S_Broadcast_Damage --> S_Loop
+    S_Loop -- Mottar C_GAME_RESULT från Klient --> S_Handle_Result
+    S_Handle_Result --> S_Broadcast_Result
+    S_Broadcast_Result --> S_End
+    S_Loop -- Klient Frånkopplad --> S_Disconnect
+    S_Disconnect --> S_Loop
+    C1 --> C2
+    C2 -- Lyckad anslutning --> C3
+    C3 --> C4
+    C4 -- Mottar S_WELCOME & S_GAME_START --> C_Loop
+    C_Loop -- Lokal input/rörelse --> C_Send_State
+    C_Send_State --> C_Loop
+    C_Loop -- Lokal attack --> C_Send_Attack
+    C_Send_Attack --> C_Loop
+    C_Loop -- Lokal skada --> C_Send_Damage
+    C_Send_Damage --> C_Loop
+    C_Loop -- Lokalt Vinst/Förlust --> C_Send_Result
+    C_Send_Result --> C_Loop
+    C_Loop -- Mottar S_PLAYER_STATE (annan spelare) --> C_Update_Remote
+    C_Update_Remote --> C_Loop
+    C_Loop -- Mottar S_SPAWN_ATTACK --> C_Handle_Attack
+    C_Handle_Attack --> C_Loop
+    C_Loop -- Mottar S_DAMAGE --> C_Handle_Damage
+    C_Handle_Damage --> C_Loop
+    C_Loop -- Mottar S_GAME_RESULT --> C_End
+    C_Loop -- Server Frånkopplad --> C_Error
+    A_Val -- Väljer Host --> S1
+    A_Val -- Väljer Join --> C1
+    S_End --> Z_Cleanup["Städa Nätverksresurser Server"]
+    C_End --> Z_Cleanup
+    C_Error --> Z_Cleanup_Client["Städa Nätverksresurser Klient"]
+     S1:::server_style
+     S2:::server_style
+     S3:::server_style
+     S4:::networkMsg_style
+     S5:::networkMsg_style
+     S6:::server_style
+     S_Loop:::loop_style
+     S_Broadcast_State:::server_style
+     S_Handle_Attack:::server_style
+     S_Broadcast_Attack:::server_style
+     S_Handle_Damage:::server_style
+     S_Broadcast_Damage:::server_style
+     S_Handle_Result:::server_style
+     S_Broadcast_Result:::server_style
+     S_End:::server_style
+     S_Disconnect:::server_style
+     C1:::client_style
+     C2:::client_style
+     C3:::networkMsg_style
+     C4:::networkMsg_style
+     C_Loop:::loop_style
+     C_Send_State:::client_style
+     C_Send_Attack:::client_style
+     C_Send_Damage:::client_style
+     C_Send_Result:::client_style
+     C_Update_Remote:::client_style
+     C_Handle_Attack:::client_style
+     C_Handle_Damage:::client_style
+     C_End:::client_style
+     C_Error:::client_style
+     A_Start:::start
+     A_Val:::choice
+     Z_Cleanup:::start
+     Z_Cleanup_Client:::start
+    classDef start fill:#bbb,stroke:#333,stroke-width:2px,color:#333
+    classDef choice fill:#FFFACD,stroke:#333,stroke-width:2px,color:#333
+    classDef server_style fill:#ADD8E6,stroke:#333,stroke-width:2px,color:#333
+    classDef client_style fill:#90EE90,stroke:#333,stroke-width:2px,color:#333
+    classDef networkMsg_style fill:#FFDAB9,stroke:#333,stroke-width:1px,color:#333
+    classDef loop_style fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#333
+    classDef end_style fill:#FFB6C1,stroke:#333,stroke-width:2px,color:#333

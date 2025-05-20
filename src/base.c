@@ -223,9 +223,12 @@ void damageBase(AppState *state, int baseIndex, float damageValue, bool sendToSe
 
     if (sendToServer)
     {
-      NetClient_SendMatchResult(state->net_client_state, state->team);
+      bool winningTeam = (tempBase->team == BLUE_TEAM) ? RED_TEAM : BLUE_TEAM;
+
+      NetClient_SendMatchResult(state->net_client_state, winningTeam);
+
       state->currentGameState = GAME_STATE_FINISHED;
-      state->winningTeam = state->team;
+      state->winningTeam = winningTeam;
       hud_finish_msg(state);
     }
 

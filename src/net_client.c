@@ -392,16 +392,18 @@ static void internal_process_server_message(NetClientState nc_state, char *buffe
     case MSG_TYPE_S_GAME_RESULT:
         if (bytesReceived >= (int)sizeof(Msg_MatchResult))
         {
-            Msg_MatchResult state_data;
-            memcpy(&state_data, buffer, sizeof(Msg_MatchResult));
-            SDL_Log("\n---\nMatch Won by team %s\n---\n", state_data.winningTeam ? "RED" : "BLUE");
-            hud_finish_msg(state);
+            Msg_MatchResult received_match_result;
+            memcpy(&received_match_result, buffer, sizeof(Msg_MatchResult));
+
+            SDL_Log("\n---\nMatch Won by team %s\n---\n", received_match_result.winningTeam ? "RED" : "BLUE");
+
+            state->winningTeam = received_match_result.winningTeam;
             state->currentGameState = GAME_STATE_FINISHED;
-            state->winningTeam = state_data.winningTeam ? RED_TEAM : BLUE_TEAM;
+            hud_finish_msg(state);
         }
         else
         {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_DAMAGE_BASE msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_MatchResult));
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[Client] Rcvd incomplete S_GAME_RESULT msg (%d bytes, needed %lu)", bytesReceived, (unsigned long)sizeof(Msg_MatchResult));
         }
         break;
 

@@ -1,0 +1,35 @@
+graph TD
+    A["Applikation Startar"] --> B["SDL_AppInit Anropas"];
+
+    B --> B1["Initiera SDL Resurser"];
+    B1 --> B2["Initiera Spel-Managers"];
+    B2 --> B3["Registrera Managers hos EntityManager"];
+    B3 -- Lyckad Initiering --> D["Intern SDL3 Huvudloop"];
+    B3 -- Fel vid Initiering --> F["Felhantering och Avsluta"];
+
+    D --> D_Event{"SDL_AppEvent Anropas vid Händelse"};
+    D_Event --> D_Event_Handle["Hantera Händelse via EntityManager"];
+    D_Event_Handle --> D;
+
+    D --> D_Iterate{"SDL_AppIterate Anropas Varje Frame"};
+    D_Iterate --> D_Iterate_Update["Uppdatera Spellogik via EntityManager"];
+    D_Iterate_Update --> D_Iterate_Render["Rendera Spelvärld via EntityManager"];
+    D_Iterate_Render --> D_Iterate_Wait["Vänta för FPS Kontroll"];
+    D_Iterate_Wait --> D;
+
+    D -- Applikationen Begär Avslut --> G{"SDL_AppQuit Anropas"};
+    G --> G1["Frigör Resurser via EntityManager"];
+    G1 --> G2["Frigör SDL Resurser"];
+    G2 --> H["Applikation Avslutas"];
+
+    classDef startEnd fill:#bbb,stroke:#333,stroke-width:2px,color:#333;
+    classDef sdlCallback fill:#87CEEB,stroke:#333,stroke-width:2px,color:#333;
+    classDef gameLogicBlock fill:#90EE90,stroke:#333,stroke-width:2px,color:#333;
+    classDef errorState fill:#FFB6C1,stroke:#333,stroke-width:2px,color:#333;
+    classDef mainLoopControl fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#333;
+
+    class A,H startEnd;
+    class B,D_Event,D_Iterate,G sdlCallback;
+    class B1,B2,B3,D_Event_Handle,D_Iterate_Update,D_Iterate_Render,D_Iterate_Wait,G1,G2 gameLogicBlock;
+    class F errorState;
+    class D mainLoopControl;

@@ -25,7 +25,7 @@
 #define BUFFER_SIZE 512
 #define SERVER_PORT 8080
 #define DEFAULT_HOSTNAME "localhost"
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 4
 #define BLUE_TEAM 0
 #define RED_TEAM 1
 

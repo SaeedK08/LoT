@@ -1,0 +1,54 @@
+---
+config:
+  theme: mc
+---
+graph TD
+    A["SDL_AppInit (init.c)"] -- Anropar --> B["PlayerManager_Init(state)"];
+    subgraph "PlayerManager_Init (i player.c)"
+        direction TB
+        B1["Allokera minne för PlayerManager (pm)"]
+        B1 --> B2["Ladda spelartexturer (Red & Blue Wizard)"]
+        B2 --> B3["Definiera EntityFunctions för PlayerManager \n (med pekare till update, render, cleanup, handle_events)"]
+        B3 --> B4["EntityManager_Add(state->entity_manager, &player_funcs)"]
+        B4 -- Lyckades --> B_OUT["Returnera pm (PlayerManager)"]
+        B2 -- "Fel vid texturladdning" --> B_FAIL["Frigör pm & Returnera NULL"]
+        B4 -- "Fel vid registrering" --> B_FAIL
+    end
+    B_OUT --> EM_Stored["EntityManager lagrar pekare till PlayerManagers funktioner"]
+    subgraph "SDL3 Huvudloop (via EntityManager)"
+        direction TB
+        EM_Stored --> LoopStart{" "}
+        LoopStart -- "Varje frame (från app_update)" --> UpdateCall["EntityManager anropar PlayerManagers Update-funktion"];
+        UpdateCall --> CB_Update["player_manager_update_callback"];
+        CB_Update --> Logic1["Hantera lokal spelares input"];
+        Logic1 --> Logic2["Uppdatera lokal spelares animation"];
+        Logic2 --> LoopStart;
+        LoopStart -- "Varje frame (från app_render)" --> RenderCall["EntityManager anropar PlayerManagers Render-funktion"];
+        RenderCall --> CB_Render["player_manager_render_callback"];
+        CB_Render --> RenderLogic["Loopa och rendera aktiva spelare \n (render_single_player)"];
+        RenderLogic --> LoopStart;
+        LoopStart -- "Vid SDL_Event (från SDL_AppEvent)" --> EventCall["EntityManager anropar PlayerManagers Event-funktion"];
+        EventCall --> CB_Event["player_manager_event_callback"];
+        CB_Event --> EventLogic["Hantera input för lokal spelare \n (t.ex. attack via NetClient_SendSpawnAttackRequest)"];
+        EventLogic --> LoopStart;
+        LoopStart -- "Vid Applikationens Avslut (från EntityManager_Destroy)" --> CleanupCall["EntityManager anropar PlayerManagers Cleanup-funktion"];
+        CleanupCall --> CB_Cleanup["player_manager_cleanup_callback"];
+        CB_Cleanup --> CleanupLogic["Frigör spelartexturer"];
+    end
+    CleanupLogic --> EndApp["PlayerManager resurser frigjorda"];
+    classDef initcall fill:#D2B48C,stroke:#333,stroke-width:2px;
+    classDef managerInit fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    classDef entityFuncDef fill:#FFEBCD,stroke:#333,stroke-width:2px;
+    classDef entityManagerAction fill:#E6E6FA,stroke:#333,stroke-width:2px;
+    classDef playerCallback fill:#90EE90,stroke:#333,stroke-width:2px;
+    classDef playerLogic fill:#F0E68C,stroke:#333,stroke-width:2px;
+    classDef loopPoint fill:#FFFFFF,stroke:#000000,stroke-width:1px;
+    classDef final fill:#bbb,stroke:#333,stroke-width:2px,color:#333;
+    class A,B initcall;
+    class B1,B2,B4,B_OUT,B_FAIL managerInit;
+    class B3 entityFuncDef;
+    class EM_Stored,UpdateCall,RenderCall,EventCall,CleanupCall entityManagerAction;
+    class CB_Update,CB_Render,CB_Event,CB_Cleanup playerCallback;
+    class Logic1,Logic2,RenderLogic,EventLogic,CleanupLogic playerLogic;
+    class LoopStart loopPoint;
+    class EndApp final;

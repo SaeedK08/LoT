@@ -1,0 +1,58 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+ subgraph subGraph0["Anropande Moduler"]
+    direction LR
+        INIT_C["init.c"]
+        PLAYER_C["player.c"]
+        TOWER_C["tower.c"]
+        BASE_C["base.c"]
+        NET_CLIENT_C["net_client.c"]
+  end
+ subgraph subGraph1["Publika Funktioner i hud.h (Interface)"]
+    direction TB
+        HUD_INIT["HUDManager_Init(AppState*)"]
+        CREATE_INSTANCE["create_hud_instance(AppState*, int, char[], bool)"]
+        UPDATE_INSTANCE["update_hud_instance(AppState*, int, char[], SDL_Color, SDL_FPoint, FontSize)"]
+        GET_COUNT["get_hud_element_count(HUDManager)"]
+        GET_INDEX["get_hud_index_by_name(AppState*, char[])"]
+        FINISH_MSG["hud_finish_msg(AppState*)"]
+  end
+    INIT_C -- Anropar vid programstart --> HUD_INIT
+    INIT_C -- Skapar HUD för lobby (host) --> CREATE_INSTANCE
+    INIT_C -- Uppdaterar HUD för lobby (host) --> UPDATE_INSTANCE
+    INIT_C -- Skapar HUD för lobby (client) --> CREATE_INSTANCE
+    INIT_C -- Uppdaterar HUD för lobby (client) --> UPDATE_INSTANCE
+    PLAYER_C -- Vid skapande/uppdatering av lokal spelare --> CREATE_INSTANCE
+    PLAYER_C -- Vid uppdatering av fjärrspelare --> CREATE_INSTANCE
+    PLAYER_C -- Renderar hälsostatus --> GET_INDEX & UPDATE_INSTANCE
+    TOWER_C -- Vid initiering av torn --> CREATE_INSTANCE
+    TOWER_C -- Renderar hälsostatus för torn --> GET_INDEX & UPDATE_INSTANCE
+    BASE_C -- Vid initiering av baser --> CREATE_INSTANCE
+    BASE_C -- Renderar hälsostatus för bas --> GET_INDEX & UPDATE_INSTANCE
+    NET_CLIENT_C -- Vid MSG_TYPE_S_GAME_START (döljer lobby msg) --> GET_INDEX & UPDATE_INSTANCE
+    NET_CLIENT_C -- Vid MSG_TYPE_S_GAME_RESULT (match slut) --> FINISH_MSG
+    FINISH_MSG -- Internt anrop --> CREATE_INSTANCE & GET_INDEX & UPDATE_INSTANCE
+    HUD_INIT --> HUD_ADT["HUDManager (hud.c / hud.h) \n - HUDManager_s (struct) \n - HUDInstance (struct) \n - TTF_Font* fontDefault \n - TTF_Font* fontSmall"]
+    CREATE_INSTANCE --> HUD_ADT
+    UPDATE_INSTANCE --> HUD_ADT
+    GET_COUNT --> HUD_ADT
+    GET_INDEX --> HUD_ADT
+    FINISH_MSG --> HUD_ADT
+     INIT_C:::callingModule
+     PLAYER_C:::callingModule
+     TOWER_C:::callingModule
+     BASE_C:::callingModule
+     NET_CLIENT_C:::callingModule
+     HUD_INIT:::publicFunc
+     CREATE_INSTANCE:::publicFunc
+     UPDATE_INSTANCE:::publicFunc
+     GET_COUNT:::publicFunc
+     GET_INDEX:::publicFunc
+     FINISH_MSG:::publicFunc
+     HUD_ADT:::adt
+    classDef adt fill:#f9f,stroke:#333,stroke-width:4px,color:#333
+    classDef publicFunc fill:#9cf,stroke:#333,stroke-width:2px,color:#333
+    classDef callingModule fill:#lightgrey,stroke:#333,stroke-width:2px,color:#333
