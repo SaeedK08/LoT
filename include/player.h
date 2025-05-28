@@ -21,7 +21,7 @@
 // --- Constants ---
 #define PLAYER_WIDTH 32.0f
 #define PLAYER_HEIGHT 64.0f
-#define PLAYER_SPEED 1000.0f       /**< Player movement speed in pixels per second. */
+#define PLAYER_SPEED 200.0f        /**< Player movement speed in pixels per second. */
 #define PLAYER_ATTACK_RANGE 100.0f /**< Maximum distance the player can initiate an attack from. */
 #define PLAYER_HEALTH_MAX 200
 #define PLAYER_DEATH_TIMER 2000 /**< Duration for death in ms. */

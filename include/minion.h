@@ -10,7 +10,7 @@
 #define RED_MINION_PATH "./resources/Sprites/Red_Team/Warrior_Red.png"
 #define MINION_WIDTH 16.0f
 #define MINION_HEIGHT 32.0f
-#define MINION_HEALTH_MAX 100.0f
+#define MINION_HEALTH_MAX 100.
 #define MINION_WAVE_AMOUNT 6
 #define MINION_MAX_AMOUNT 24
 #define MINION_ATTACK_COOLDOWN 1000
